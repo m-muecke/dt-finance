@@ -3,6 +3,8 @@
 The goal of this document is to store common financial calculations
 using the `data.table` package using the latest R and data.table syntax.
 
+## Portfolio Management
+
 #### Generate data
 
 Generate some fake stock prices for a few tickers.
