@@ -28,6 +28,17 @@ generate_prices <- function(ticker, start_date, end_date) {
   )
 }
 
+generate_benchmark <- function(start_date, end_date) {
+  dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
+  n <- length(dates)
+  prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000  # Base price around 3000
+  data.table(
+    ticker = "SP500",
+    date = dates,
+    price = prices
+  )
+}
+
 tickers <- c("AAPL", "GOOGL", "MSFT", "AMZN")
 weights <- c(0.4, 0.3, 0.2, 0.1)
 start_date <- "2015-01-01"
@@ -73,6 +84,37 @@ port_ret_week <- dt[, .(ret = sum(wret)), by = .(year, week)]
 port_ret_month <- dt[, .(ret = sum(wret)), by = .(year, month)]
 port_ret_year <- dt[, .(ret = sum(wret)), by = year]
 head(port_ret_year)
+```
+#### Compare with benchmark
+
+Calculat the benchmark return:
+
+```{r}
+bmr <- generate_benchmark(start_date, end_date) |>
+  setorder(date) |>
+  _[, price := log(price)] |>
+  _[, ret := price - shift(price)] |>
+  na.omit("ret")
+
+port <- dt |>
+  _[, .(ret = sum(wret), ticker = "portfolio"), by = date] |>
+  rbind(bmr[, .(ticker, date, ret)]) |>
+  setorder(ticker, date) |>
+  _[, cum_ret := cumsum(ret), by = ticker][]
+```
+
+Plotting the cumulative return:
+
+```{r}
+library(ggplot2)
+
+ggplot(port, aes(x = date, y = cum_ret, color = ticker)) +
+  geom_line() +
+  labs(
+    title = "Portfolio vs Benchmark",
+    x = "Date",
+    y = "Cumulative Return"
+  )
 ```
 
 #### Calculate volatility
