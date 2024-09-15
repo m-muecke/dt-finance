@@ -30,7 +30,7 @@ end_date <- Sys.Date()
 
 dt <- lapply(tickers, generate_prices, start_date, end_date) |> rbindlist()
 weights <- data.table(ticker = tickers, weight = weights)
-dt <- merge(dt, weights, by = "ticker")
+dt <- dt[weights, on = "ticker"]
 head(dt)
 ```
 

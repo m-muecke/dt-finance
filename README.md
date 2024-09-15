@@ -27,11 +27,10 @@ end_date <- Sys.Date()
 
 dt <- lapply(tickers, generate_prices, start_date, end_date) |> rbindlist()
 weights <- data.table(ticker = tickers, weight = weights)
-dt <- merge(dt, weights, by = "ticker")
+dt <- dt[weights, on = "ticker"]
 head(dt)
 ```
 
-    Key: <ticker>
        ticker       date     price weight
        <char>     <Date>     <num>  <num>
     1:   AAPL 2015-01-01  98.84293    0.4
@@ -56,7 +55,6 @@ dt <- dt |>
 head(dt)
 ```
 
-    Key: <ticker>
        ticker       date    price weight          ret         wret
        <char>     <Date>    <num>  <num>        <num>        <num>
     1:   AAPL 2015-01-02 4.596801    0.4  0.003268944  0.001307577
