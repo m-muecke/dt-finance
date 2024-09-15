@@ -1,5 +1,8 @@
 # data.table finance patterns
 
+The goal of this document is to show store common financial calculations
+using the `data.table` package using the latest R and data.table syntax.
+
 #### Generate data
 
 Generate some fake stock prices for a few tickers.
