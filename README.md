@@ -131,24 +131,31 @@ bmr <- generate_benchmark(start_date, end_date) |>
   na.omit("ret")
 
 port <- dt |>
-  _[, .(ret = sum(wret), ticker = "portfolio"), by = date] |>
+  _[, .(ret = sum(wret), ticker = "Portfolio"), by = date] |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
-  _[, cum_ret := cumsum(ret), by = ticker][]
+  _[, cum_ret := cumsum(ret), by = ticker] |>
+  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
 ```
 
-Plotting the cumulative return:
+Compare the portfolio with the benchmark performance:
 
 ``` r
 library(ggplot2)
 
 ggplot(port, aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
-  labs(
-    title = "Portfolio vs Benchmark",
-    x = "Date",
-    y = "Cumulative Return"
-  )
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank(),
+    legend.title = element_blank()
+  ) +
+  labs(title = "Performance: Portfolio vs. Benchmark")
 ```
 
 ![](README_files/figure-commonmark/unnamed-chunk-6-1.png)
