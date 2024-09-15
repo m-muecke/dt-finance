@@ -106,6 +106,7 @@ port <- dt |>
 Plotting the cumulative return:
 
 ```{r}
+#| dpi = 300
 library(ggplot2)
 
 ggplot(port, aes(x = date, y = cum_ret, color = ticker)) +
