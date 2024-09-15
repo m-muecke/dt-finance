@@ -1,0 +1,89 @@
+---
+title: "data.table finance patterns"
+format: gfm
+---
+
+#### Generate data
+
+Generate some fake stock prices for a few tickers.
+
+```{r}
+library(data.table)
+
+set.seed(1234L)
+
+generate_prices <- function(ticker, start_date, end_date) {
+  dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
+  n <- length(dates)
+  prices <- cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
+  data.table(
+    ticker = ticker,
+    date = dates,
+    price = prices
+  )
+}
+
+tickers <- c("AAPL", "GOOGL", "MSFT", "AMZN")
+weights <- c(0.4, 0.3, 0.2, 0.1)
+start_date <- "2015-01-01"
+end_date <- Sys.Date()
+
+dt <- lapply(tickers, generate_prices, start_date, end_date) |> rbindlist()
+weights <- data.table(ticker = tickers, weight = weights)
+dt <- merge(dt, weights, by = "ticker")
+head(dt)
+```
+
+#### Calculate returns
+
+In most use-cases and asset classes working with log prices is preferred.
+Change the price to log prices and calculate the return.
+
+```{r}
+dt <- dt |>
+  setorder(ticker, date) |>
+  _[, price := log(price)] |>
+  _[, ret := price - shift(price), by = ticker] |>
+  _[, wret := ret * weight] |>
+  na.omit("ret")
+head(dt)
+```
+
+#### Calculate weekly, monthly and yearly returns
+
+Return for each instrument:
+
+```{r}
+dt[, let(week = week(date), month = month(date), year = year(date))]
+ret_week <- dt[, .(ret = sum(ret)), by = .(ticker, year, week)]
+ret_month <- dt[, .(ret = sum(ret)), by = .(ticker, year, month)]
+ret_year <- dt[, .(ret = sum(ret)), by = .(ticker, year)]
+head(ret_year)
+```
+
+Return for the portfolio:
+
+```{r}
+port_ret_week <- dt[, .(ret = sum(wret)), by = .(year, week)]
+port_ret_month <- dt[, .(ret = sum(wret)), by = .(year, month)]
+port_ret_year <- dt[, .(ret = sum(wret)), by = year]
+head(port_ret_year)
+```
+
+#### Calculate volatility
+
+```{r}
+vola <- dt[, .(daily_vola = sd(ret)), by = .(ticker, year)] |>
+  _[, let(
+    weekly_vola = daily_vola * sqrt(5L),
+    monthly_vola = daily_vola * sqrt(21L),
+    yearly_vola = daily_vola * sqrt(252L)
+  )]
+head(vola)
+```
+
+#### TODO:
+
+- Max/average drawdown
+- Tacking error
+- Portfolio risk
