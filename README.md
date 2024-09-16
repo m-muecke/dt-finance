@@ -1,6 +1,6 @@
 # data.table finance patterns
 
-The goal of this document is to store common financial calculations
+The goal of this document is to document common financial calculations
 using the `data.table` package using the latest `R >= 4.4` and
 `data.table >= 1.16` syntax.
 
@@ -169,8 +169,8 @@ port |>
 
 ![](README_files/figure-commonmark/unnamed-chunk-6-1.png)
 
-Or turn it into a wide-format and show display the performance as a line
-area chart:
+Or turn it into a wide-format and display the performance as an area
+chart:
 
 ``` r
 # TODO: remove the legend and bmr/port labels

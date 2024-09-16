@@ -3,7 +3,7 @@ title: "data.table finance patterns"
 format: gfm
 ---
 
-The goal of this document is to store common financial calculations using
+The goal of this document is to document common financial calculations using
 the `data.table` package using the latest `R >= 4.4` and `data.table >= 1.16` syntax.
 
 ## Portfolio Management
@@ -133,7 +133,7 @@ port |>
   labs(title = "Performance: Portfolio vs. Benchmark")
 ```
 
-Or turn it into a wide-format and show display the performance as a line area chart:
+Or turn it into a wide-format and display the performance as an area chart:
 
 ```{r}
 #| dpi = 300
