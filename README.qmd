@@ -137,7 +137,7 @@ Or turn it into a wide-format and display the performance as an area chart:
 
 ```{r}
 #| dpi = 300
-# TODO: remove the legend and bmr/port labels
+# TODO: remove the legend with T/F and bmr/port labels
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>

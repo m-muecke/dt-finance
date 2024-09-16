@@ -1,4 +1,4 @@
-# data.table finance patterns
+# data.table finance notes
 
 The goal of this document is to document common financial calculations
 using the `data.table` package using the latest `R >= 4.4` and
@@ -173,7 +173,7 @@ Or turn it into a wide-format and display the performance as an area
 chart:
 
 ``` r
-# TODO: remove the legend and bmr/port labels
+# TODO: remove the legend with T/F and bmr/port labels
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
