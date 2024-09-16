@@ -4,7 +4,7 @@ format: gfm
 ---
 
 The goal of this document is to store common financial calculations using
-the `data.table` package using the latest R and data.table syntax.
+the `data.table` package using the latest `R >= 4.4` and `data.table >= 1.16` syntax.
 
 ## Portfolio Management
 
@@ -15,7 +15,7 @@ Generate some fake stock prices for a few tickers.
 ```{r}
 library(data.table)
 
-set.seed(1234L)
+set.seed(1994L)
 
 generate_prices <- function(ticker, start_date, end_date) {
   dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
@@ -31,7 +31,7 @@ generate_prices <- function(ticker, start_date, end_date) {
 generate_benchmark <- function(start_date, end_date) {
   dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
   n <- length(dates)
-  prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000  # Base price around 3000
+  prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
   data.table(
     ticker = "SP500",
     date = dates,
@@ -114,7 +114,7 @@ Compare the portfolio with the benchmark performance:
 library(ggplot2)
 
 port |>
-  _[between(date, "2020-01-01", max(date))] |>
+  _[between(date, "2021-01-01", max(date))] |>
   ggplot(aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
   theme_minimal() +
@@ -136,19 +136,21 @@ Or turn it into a wide-format and show display the performance as a line area ch
 
 ```{r}
 #| dpi = 300
+# TODO: remove the legend and bmr/port labels
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
   _[, diff := portfolio - benchmark][]
 
 perf |>
-  _[between(date, "2020-01-01", max(date))] |>
+  _[between(date, "2021-01-01", max(date))] |>
   ggplot(aes(x = date)) +
   geom_ribbon(aes(
       ymin = pmin(portfolio, benchmark),
       ymax = pmax(portfolio, benchmark),
       fill = diff > 0
-    ), alpha = 0.4
+    ),
+    alpha = 0.4
   ) +
   geom_line(aes(y = portfolio), color = "darkblue") +
   geom_line(aes(y = benchmark), color = "black") +

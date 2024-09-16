@@ -1,7 +1,8 @@
 # data.table finance patterns
 
 The goal of this document is to store common financial calculations
-using the `data.table` package using the latest R and data.table syntax.
+using the `data.table` package using the latest `R >= 4.4` and
+`data.table >= 1.16` syntax.
 
 ## Portfolio Management
 
@@ -12,7 +13,7 @@ Generate some fake stock prices for a few tickers.
 ``` r
 library(data.table)
 
-set.seed(1234L)
+set.seed(1994L)
 
 generate_prices <- function(ticker, start_date, end_date) {
   dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
@@ -28,7 +29,7 @@ generate_prices <- function(ticker, start_date, end_date) {
 generate_benchmark <- function(start_date, end_date) {
   dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
   n <- length(dates)
-  prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000  # Base price around 3000
+  prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
   data.table(
     ticker = "SP500",
     date = dates,
@@ -52,12 +53,12 @@ head(dt)
 
        ticker       date     price weight country
        <char>     <Date>     <num>  <num>  <char>
-    1:   AAPL 2015-01-01  98.84293    0.4     USA
-    2:   AAPL 2015-01-02  99.16657    0.4     USA
-    3:   AAPL 2015-01-03 100.29156    0.4     USA
-    4:   AAPL 2015-01-04  97.98917    0.4     USA
-    5:   AAPL 2015-01-05  98.45866    0.4     USA
-    6:   AAPL 2015-01-06  99.00615    0.4     USA
+    1:   AAPL 2015-01-01  98.76269    0.4     USA
+    2:   AAPL 2015-01-02  99.09730    0.4     USA
+    3:   AAPL 2015-01-03 100.83187    0.4     USA
+    4:   AAPL 2015-01-04 102.29253    0.4     USA
+    5:   AAPL 2015-01-05 102.44505    0.4     USA
+    6:   AAPL 2015-01-06 101.12377    0.4     USA
 
 #### Calculate returns
 
@@ -76,12 +77,12 @@ head(dt)
 
        ticker       date    price weight country          ret         wret
        <char>     <Date>    <num>  <num>  <char>        <num>        <num>
-    1:   AAPL 2015-01-02 4.596801    0.4     USA  0.003268944  0.001307577
-    2:   AAPL 2015-01-03 4.608082    0.4     USA  0.011280546  0.004512219
-    3:   AAPL 2015-01-04 4.584857    0.4     USA -0.023224592 -0.009289837
-    4:   AAPL 2015-01-05 4.589637    0.4     USA  0.004779805  0.001911922
-    5:   AAPL 2015-01-06 4.595182    0.4     USA  0.005545156  0.002218062
-    6:   AAPL 2015-01-07 4.589921    0.4     USA -0.005261216 -0.002104486
+    1:   AAPL 2015-01-02 4.596102    0.4     USA  0.003382387  0.001352955
+    2:   AAPL 2015-01-03 4.613455    0.4     USA  0.017352273  0.006940909
+    3:   AAPL 2015-01-04 4.627837    0.4     USA  0.014382158  0.005752863
+    4:   AAPL 2015-01-05 4.629327    0.4     USA  0.001489923  0.000595969
+    5:   AAPL 2015-01-06 4.616345    0.4     USA -0.012981380 -0.005192552
+    6:   AAPL 2015-01-07 4.624884    0.4     USA  0.008538542  0.003415417
 
 #### Calculate weekly, monthly and yearly returns
 
@@ -97,12 +98,12 @@ head(ret_year)
 
        ticker  year         ret
        <char> <int>       <num>
-    1:   AAPL  2015  0.23085710
-    2:   AAPL  2016 -0.13173292
-    3:   AAPL  2017  0.04703517
-    4:   AAPL  2018  0.38669953
-    5:   AAPL  2019 -0.01543271
-    6:   AAPL  2020  0.40194567
+    1:   AAPL  2015  0.15657366
+    2:   AAPL  2016  0.13040908
+    3:   AAPL  2017  0.05506831
+    4:   AAPL  2018  0.19586294
+    5:   AAPL  2019 -0.34758024
+    6:   AAPL  2020  0.35821832
 
 Return for the portfolio:
 
@@ -113,14 +114,14 @@ port_ret_year <- dt[, .(ret = sum(wret)), by = year]
 head(port_ret_year)
 ```
 
-        year        ret
-       <int>      <num>
-    1:  2015 0.22366883
-    2:  2016 0.07547072
-    3:  2017 0.14187947
-    4:  2018 0.18890048
-    5:  2019 0.14811013
-    6:  2020 0.29799270
+        year         ret
+       <int>       <num>
+    1:  2015  0.14060793
+    2:  2016  0.17495184
+    3:  2017  0.11483987
+    4:  2018  0.09582058
+    5:  2019 -0.21623988
+    6:  2020  0.03894370
 
 #### Compare with benchmark
 
@@ -147,7 +148,7 @@ Compare the portfolio with the benchmark performance:
 library(ggplot2)
 
 port |>
-  _[between(date, "2020-01-01", max(date))] |>
+  _[between(date, "2021-01-01", max(date))] |>
   ggplot(aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
   theme_minimal() +
@@ -171,19 +172,21 @@ Or turn it into a wide-format and show display the performance as a line
 area chart:
 
 ``` r
+# TODO: remove the legend and bmr/port labels
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
   _[, diff := portfolio - benchmark][]
 
 perf |>
-  _[between(date, "2020-01-01", max(date))] |>
+  _[between(date, "2021-01-01", max(date))] |>
   ggplot(aes(x = date)) +
   geom_ribbon(aes(
       ymin = pmin(portfolio, benchmark),
       ymax = pmax(portfolio, benchmark),
       fill = diff > 0
-    ), alpha = 0.4
+    ),
+    alpha = 0.4
   ) +
   geom_line(aes(y = portfolio), color = "darkblue") +
   geom_line(aes(y = benchmark), color = "black") +
@@ -220,12 +223,12 @@ head(vola)
 
        ticker  year  daily_vola weekly_vola monthly_vola yearly_vola
        <char> <int>       <num>       <num>        <num>       <num>
-    1:   AAPL  2015 0.009941480  0.02222982   0.04555758   0.1578161
-    2:   AAPL  2016 0.010131227  0.02265411   0.04642711   0.1608282
-    3:   AAPL  2017 0.009635371  0.02154534   0.04415482   0.1529568
-    4:   AAPL  2018 0.009500847  0.02124454   0.04353835   0.1508213
-    5:   AAPL  2019 0.010148660  0.02269309   0.04650700   0.1611050
-    6:   AAPL  2020 0.010526706  0.02353843   0.04823943   0.1671063
+    1:   AAPL  2015 0.009838597  0.02199977   0.04508612   0.1561829
+    2:   AAPL  2016 0.010356613  0.02315809   0.04745996   0.1644061
+    3:   AAPL  2017 0.009602949  0.02147285   0.04400624   0.1524421
+    4:   AAPL  2018 0.010043538  0.02245803   0.04602527   0.1594362
+    5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
+    6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
 
 #### TODO:
 
