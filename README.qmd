@@ -1,5 +1,5 @@
 ---
-title: "data.table finance patterns"
+title: "data.table finance notes"
 format: gfm
 ---
 
