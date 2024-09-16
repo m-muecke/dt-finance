@@ -36,25 +36,28 @@ generate_benchmark <- function(start_date, end_date) {
   )
 }
 
-tickers <- c("AAPL", "GOOGL", "MSFT", "AMZN")
-weights <- c(0.4, 0.3, 0.2, 0.1)
+ticker <- c("AAPL", "GOOGL", "MSFT", "AMZN")
 start_date <- "2015-01-01"
 end_date <- Sys.Date()
 
-dt <- lapply(tickers, generate_prices, start_date, end_date) |> rbindlist()
-weights <- data.table(ticker = tickers, weight = weights)
+dt <- lapply(ticker, generate_prices, start_date, end_date) |> rbindlist()
+weights <- data.table(
+  ticker = ticker,
+  weight = c(0.4, 0.3, 0.2, 0.1),
+  country = c("USA", "USA", "USA", "USA")
+)
 dt <- dt[weights, on = "ticker"]
 head(dt)
 ```
 
-       ticker       date     price weight
-       <char>     <Date>     <num>  <num>
-    1:   AAPL 2015-01-01  98.84293    0.4
-    2:   AAPL 2015-01-02  99.16657    0.4
-    3:   AAPL 2015-01-03 100.29156    0.4
-    4:   AAPL 2015-01-04  97.98917    0.4
-    5:   AAPL 2015-01-05  98.45866    0.4
-    6:   AAPL 2015-01-06  99.00615    0.4
+       ticker       date     price weight country
+       <char>     <Date>     <num>  <num>  <char>
+    1:   AAPL 2015-01-01  98.84293    0.4     USA
+    2:   AAPL 2015-01-02  99.16657    0.4     USA
+    3:   AAPL 2015-01-03 100.29156    0.4     USA
+    4:   AAPL 2015-01-04  97.98917    0.4     USA
+    5:   AAPL 2015-01-05  98.45866    0.4     USA
+    6:   AAPL 2015-01-06  99.00615    0.4     USA
 
 #### Calculate returns
 
@@ -71,14 +74,14 @@ dt <- dt |>
 head(dt)
 ```
 
-       ticker       date    price weight          ret         wret
-       <char>     <Date>    <num>  <num>        <num>        <num>
-    1:   AAPL 2015-01-02 4.596801    0.4  0.003268944  0.001307577
-    2:   AAPL 2015-01-03 4.608082    0.4  0.011280546  0.004512219
-    3:   AAPL 2015-01-04 4.584857    0.4 -0.023224592 -0.009289837
-    4:   AAPL 2015-01-05 4.589637    0.4  0.004779805  0.001911922
-    5:   AAPL 2015-01-06 4.595182    0.4  0.005545156  0.002218062
-    6:   AAPL 2015-01-07 4.589921    0.4 -0.005261216 -0.002104486
+       ticker       date    price weight country          ret         wret
+       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
+    1:   AAPL 2015-01-02 4.596801    0.4     USA  0.003268944  0.001307577
+    2:   AAPL 2015-01-03 4.608082    0.4     USA  0.011280546  0.004512219
+    3:   AAPL 2015-01-04 4.584857    0.4     USA -0.023224592 -0.009289837
+    4:   AAPL 2015-01-05 4.589637    0.4     USA  0.004779805  0.001911922
+    5:   AAPL 2015-01-06 4.595182    0.4     USA  0.005545156  0.002218062
+    6:   AAPL 2015-01-07 4.589921    0.4     USA -0.005261216 -0.002104486
 
 #### Calculate weekly, monthly and yearly returns
 
@@ -112,12 +115,12 @@ head(port_ret_year)
 
         year        ret
        <int>      <num>
-    1:  2015 0.23301906
-    2:  2016 0.06998286
-    3:  2017 0.13893524
-    4:  2018 0.19150558
-    5:  2019 0.13820316
-    6:  2020 0.30724054
+    1:  2015 0.22366883
+    2:  2016 0.07547072
+    3:  2017 0.14187947
+    4:  2018 0.18890048
+    5:  2019 0.14811013
+    6:  2020 0.29799270
 
 #### Compare with benchmark
 
@@ -135,7 +138,7 @@ port <- dt |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
   _[, cum_ret := cumsum(ret), by = ticker] |>
-  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
+  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")][]
 ```
 
 Compare the portfolio with the benchmark performance:
@@ -143,11 +146,13 @@ Compare the portfolio with the benchmark performance:
 ``` r
 library(ggplot2)
 
-ggplot(port, aes(x = date, y = cum_ret, color = ticker)) +
+port |>
+  _[between(date, "2020-01-01", max(date))] |>
+  ggplot(aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", hjust = 0.5),
     panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
@@ -155,10 +160,51 @@ ggplot(port, aes(x = date, y = cum_ret, color = ticker)) +
     axis.title = element_blank(),
     legend.title = element_blank()
   ) +
+  scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 2L)) +
   labs(title = "Performance: Portfolio vs. Benchmark")
 ```
 
 ![](README_files/figure-commonmark/unnamed-chunk-6-1.png)
+
+Or turn it into a wide-format and show display the performance as a line
+area chart:
+
+``` r
+perf <- port |>
+  dcast(date ~ ticker, value.var = "cum_ret") |>
+  setnames(tolower) |>
+  _[, diff := portfolio - benchmark][]
+
+perf |>
+  _[between(date, "2020-01-01", max(date))] |>
+  ggplot(aes(x = date)) +
+  geom_ribbon(aes(
+      ymin = pmin(portfolio, benchmark),
+      ymax = pmax(portfolio, benchmark),
+      fill = diff > 0
+    ), alpha = 0.4
+  ) +
+  geom_line(aes(y = portfolio), color = "darkblue") +
+  geom_line(aes(y = benchmark), color = "black") +
+  scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 2L)) +
+  labs(title = "Performance: Portfolio vs. Benchmark") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank(),
+    legend.title = element_blank()
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-7-1.png)
+
+#### Analyse the portfolio exposure
 
 #### Calculate volatility
 
