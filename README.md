@@ -217,6 +217,7 @@ library(gt)
 perf |>
   _[date >= "2022-01-10", .(benchmark = last(benchmark) - first(benchmark), portfolio = last(portfolio) - first(portfolio)), by = .(year(date))] |>
   gt() |>
+  fmt_markdown() |>
   tab_header(title = "Performance: Portfolio vs. Benchmark") |>
   fmt_percent(columns = c("benchmark", "portfolio")) |>
   cols_label(year = "Year", benchmark = "Benchmark", portfolio = "Portfolio")
@@ -630,13 +631,16 @@ perf |>
     </tr>
   </thead>
   <tbody class="gt_table_body">
-    <tr><td headers="year" class="gt_row gt_right">2022</td>
+    <tr><td headers="year" class="gt_row gt_right"><div data-qmd-base64="MjAyMg=="><div class='gt_from_md'><p>2022</p>
+</div></div></td>
 <td headers="benchmark" class="gt_row gt_right">−19.93%</td>
 <td headers="portfolio" class="gt_row gt_right">28.96%</td></tr>
-    <tr><td headers="year" class="gt_row gt_right">2023</td>
+    <tr><td headers="year" class="gt_row gt_right"><div data-qmd-base64="MjAyMw=="><div class='gt_from_md'><p>2023</p>
+</div></div></td>
 <td headers="benchmark" class="gt_row gt_right">5.42%</td>
 <td headers="portfolio" class="gt_row gt_right">10.70%</td></tr>
-    <tr><td headers="year" class="gt_row gt_right">2024</td>
+    <tr><td headers="year" class="gt_row gt_right"><div data-qmd-base64="MjAyNA=="><div class='gt_from_md'><p>2024</p>
+</div></div></td>
 <td headers="benchmark" class="gt_row gt_right">6.19%</td>
 <td headers="portfolio" class="gt_row gt_right">−1.31%</td></tr>
   </tbody>

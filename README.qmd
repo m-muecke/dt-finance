@@ -178,6 +178,7 @@ library(gt)
 perf |>
   _[date >= "2022-01-10", .(benchmark = last(benchmark) - first(benchmark), portfolio = last(portfolio) - first(portfolio)), by = .(year(date))] |>
   gt() |>
+  fmt_markdown() |>
   tab_header(title = "Performance: Portfolio vs. Benchmark") |>
   fmt_percent(columns = c("benchmark", "portfolio")) |>
   cols_label(year = "Year", benchmark = "Benchmark", portfolio = "Portfolio")
