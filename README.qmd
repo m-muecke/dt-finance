@@ -172,7 +172,7 @@ perf |>
   )
 ```
 
-```{r}
+```{r, eval = FALSE}
 library(gt)
 
 perf |>
