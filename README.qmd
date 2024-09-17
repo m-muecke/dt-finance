@@ -55,16 +55,19 @@ head(dt)
 
 #### Calculate returns
 
-In most use-cases and asset classes working with log prices is preferred.
-Change the price to log prices and calculate the return.
+In most use-cases and asset classes working with log returns is preferred.
 
 ```{r}
+logret <- function(x){
+  x <- log(x)
+  x - shift(x)
+}
+
 dt <- dt |>
   setorder(ticker, date) |>
-  _[, price := log(price)] |>
-  _[, ret := price - shift(price), by = ticker] |>
-  _[, wret := ret * weight] |>
-  na.omit("ret")
+  _[, ret := logret(price), by = ticker] |>
+  na.omit("ret") |>
+  _[, wret := ret * weight]
 head(dt)
 ```
 
@@ -95,8 +98,7 @@ Calculat the benchmark return:
 ```{r}
 bmr <- generate_benchmark(start_date, end_date) |>
   setorder(date) |>
-  _[, price := log(price)] |>
-  _[, ret := price - shift(price)] |>
+  _[, ret := logret(price)] |>
   na.omit("ret")
 
 port <- dt |>
@@ -168,6 +170,17 @@ perf |>
     axis.title = element_blank(),
     legend.title = element_blank()
   )
+```
+
+```{r}
+library(gt)
+
+perf |>
+  _[date >= "2022-01-10", .(benchmark = last(benchmark) - first(benchmark), portfolio = last(portfolio) - first(portfolio)), by = .(year(date))] |>
+  gt() |>
+  tab_header(title = "Performance: Portfolio vs. Benchmark") |>
+  fmt_percent(columns = c("benchmark", "portfolio")) |>
+  cols_label(year = "Year", benchmark = "Benchmark", portfolio = "Portfolio")
 ```
 
 #### Analyse the portfolio exposure

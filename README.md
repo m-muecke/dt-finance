@@ -62,27 +62,31 @@ head(dt)
 
 #### Calculate returns
 
-In most use-cases and asset classes working with log prices is
-preferred. Change the price to log prices and calculate the return.
+In most use-cases and asset classes working with log returns is
+preferred.
 
 ``` r
+logret <- function(x){
+  x <- log(x)
+  x - shift(x)
+}
+
 dt <- dt |>
   setorder(ticker, date) |>
-  _[, price := log(price)] |>
-  _[, ret := price - shift(price), by = ticker] |>
-  _[, wret := ret * weight] |>
-  na.omit("ret")
+  _[, ret := logret(price), by = ticker] |>
+  na.omit("ret") |>
+  _[, wret := ret * weight]
 head(dt)
 ```
 
        ticker       date    price weight country          ret         wret
        <char>     <Date>    <num>  <num>  <char>        <num>        <num>
-    1:   AAPL 2015-01-02 4.596102    0.4     USA  0.003382387  0.001352955
-    2:   AAPL 2015-01-03 4.613455    0.4     USA  0.017352273  0.006940909
-    3:   AAPL 2015-01-04 4.627837    0.4     USA  0.014382158  0.005752863
-    4:   AAPL 2015-01-05 4.629327    0.4     USA  0.001489923  0.000595969
-    5:   AAPL 2015-01-06 4.616345    0.4     USA -0.012981380 -0.005192552
-    6:   AAPL 2015-01-07 4.624884    0.4     USA  0.008538542  0.003415417
+    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003382387  0.001352955
+    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017352273  0.006940909
+    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014382158  0.005752863
+    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001489923  0.000595969
+    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012981380 -0.005192552
+    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008538542  0.003415417
 
 #### Calculate weekly, monthly and yearly returns
 
@@ -116,12 +120,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.14060793
-    2:  2016  0.17495184
-    3:  2017  0.11483987
-    4:  2018  0.09582058
-    5:  2019 -0.21623988
-    6:  2020  0.03894370
+    1:  2015  0.14636114
+    2:  2016  0.18143692
+    3:  2017  0.11589234
+    4:  2018  0.07554231
+    5:  2019 -0.20145152
+    6:  2020  0.03973387
 
 #### Compare with benchmark
 
@@ -130,8 +134,7 @@ Calculat the benchmark return:
 ``` r
 bmr <- generate_benchmark(start_date, end_date) |>
   setorder(date) |>
-  _[, price := log(price)] |>
-  _[, ret := price - shift(price)] |>
+  _[, ret := logret(price)] |>
   na.omit("ret")
 
 port <- dt |>
@@ -207,6 +210,439 @@ perf |>
 ```
 
 ![](README_files/figure-commonmark/unnamed-chunk-7-1.png)
+
+``` r
+library(gt)
+
+perf |>
+  _[date >= "2022-01-10", .(benchmark = last(benchmark) - first(benchmark), portfolio = last(portfolio) - first(portfolio)), by = .(year(date))] |>
+  gt() |>
+  tab_header(title = "Performance: Portfolio vs. Benchmark") |>
+  fmt_percent(columns = c("benchmark", "portfolio")) |>
+  cols_label(year = "Year", benchmark = "Benchmark", portfolio = "Portfolio")
+```
+
+<div id="mszhdufgcx" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#mszhdufgcx table {
+  font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+&#10;#mszhdufgcx thead, #mszhdufgcx tbody, #mszhdufgcx tfoot, #mszhdufgcx tr, #mszhdufgcx td, #mszhdufgcx th {
+  border-style: none;
+}
+&#10;#mszhdufgcx p {
+  margin: 0;
+  padding: 0;
+}
+&#10;#mszhdufgcx .gt_table {
+  display: table;
+  border-collapse: collapse;
+  line-height: normal;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+&#10;#mszhdufgcx .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+&#10;#mszhdufgcx .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 3px;
+  padding-bottom: 5px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+&#10;#mszhdufgcx .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+&#10;#mszhdufgcx .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+&#10;#mszhdufgcx .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+&#10;#mszhdufgcx .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+&#10;#mszhdufgcx .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+&#10;#mszhdufgcx .gt_spanner_row {
+  border-bottom-style: hidden;
+}
+&#10;#mszhdufgcx .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+&#10;#mszhdufgcx .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+&#10;#mszhdufgcx .gt_from_md > :first-child {
+  margin-top: 0;
+}
+&#10;#mszhdufgcx .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+&#10;#mszhdufgcx .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+&#10;#mszhdufgcx .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#mszhdufgcx .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+&#10;#mszhdufgcx .gt_row_group_first td {
+  border-top-width: 2px;
+}
+&#10;#mszhdufgcx .gt_row_group_first th {
+  border-top-width: 2px;
+}
+&#10;#mszhdufgcx .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#mszhdufgcx .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+&#10;#mszhdufgcx .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#mszhdufgcx .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_last_grand_summary_row_top {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: double;
+  border-bottom-width: 6px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+&#10;#mszhdufgcx .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#mszhdufgcx .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+&#10;#mszhdufgcx .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+&#10;#mszhdufgcx .gt_left {
+  text-align: left;
+}
+&#10;#mszhdufgcx .gt_center {
+  text-align: center;
+}
+&#10;#mszhdufgcx .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+&#10;#mszhdufgcx .gt_font_normal {
+  font-weight: normal;
+}
+&#10;#mszhdufgcx .gt_font_bold {
+  font-weight: bold;
+}
+&#10;#mszhdufgcx .gt_font_italic {
+  font-style: italic;
+}
+&#10;#mszhdufgcx .gt_super {
+  font-size: 65%;
+}
+&#10;#mszhdufgcx .gt_footnote_marks {
+  font-size: 75%;
+  vertical-align: 0.4em;
+  position: initial;
+}
+&#10;#mszhdufgcx .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+&#10;#mszhdufgcx .gt_indent_1 {
+  text-indent: 5px;
+}
+&#10;#mszhdufgcx .gt_indent_2 {
+  text-indent: 10px;
+}
+&#10;#mszhdufgcx .gt_indent_3 {
+  text-indent: 15px;
+}
+&#10;#mszhdufgcx .gt_indent_4 {
+  text-indent: 20px;
+}
+&#10;#mszhdufgcx .gt_indent_5 {
+  text-indent: 25px;
+}
+&#10;#mszhdufgcx .katex-display {
+  display: inline-flex !important;
+  margin-bottom: 0.75em !important;
+}
+&#10;#mszhdufgcx div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+  height: 0px !important;
+}
+</style>
+<table class="gt_table" data-quarto-disable-processing="false" data-quarto-bootstrap="false">
+  <thead>
+    <tr class="gt_heading">
+      <td colspan="3" class="gt_heading gt_title gt_font_normal gt_bottom_border" style>Performance: Portfolio vs. Benchmark</td>
+    </tr>
+    &#10;    <tr class="gt_col_headings">
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Year">Year</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Benchmark">Benchmark</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1" scope="col" id="Portfolio">Portfolio</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td headers="year" class="gt_row gt_right">2022</td>
+<td headers="benchmark" class="gt_row gt_right">−19.93%</td>
+<td headers="portfolio" class="gt_row gt_right">28.96%</td></tr>
+    <tr><td headers="year" class="gt_row gt_right">2023</td>
+<td headers="benchmark" class="gt_row gt_right">5.42%</td>
+<td headers="portfolio" class="gt_row gt_right">10.70%</td></tr>
+    <tr><td headers="year" class="gt_row gt_right">2024</td>
+<td headers="benchmark" class="gt_row gt_right">6.19%</td>
+<td headers="portfolio" class="gt_row gt_right">−1.31%</td></tr>
+  </tbody>
+  &#10;  
+</table>
+</div>
 
 #### Analyse the portfolio exposure
 
