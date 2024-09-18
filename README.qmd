@@ -168,7 +168,7 @@ perf |>
   geom_line(aes(y = benchmark), color = "black") +
   scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 2L)) +
-  labs(title = "Cumulative Return: Portfolio vs. Benchmark")
+  labs(title = "Cumulative Return: Portfolio vs. Benchmark") +
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold", hjust = 0.5),
