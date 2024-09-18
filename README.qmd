@@ -55,9 +55,18 @@ head(dt)
 
 #### Calculate returns
 
-In most use-cases and asset classes working with log returns is preferred.
-
 ```{r}
+dt <- dt |>
+  setorder(ticker, date) |>
+  _[, ret := price / shift(price) - 1, by = ticker] |>
+  na.omit("ret") |>
+  _[, wret := ret * weight]
+head(dt)
+```
+
+Alternatively, calculate the log returns:
+
+```{r, eval = FALSE}
 logret <- function(x){
   x <- log(x)
   x - shift(x)
@@ -77,18 +86,18 @@ Return for each instrument:
 
 ```{r}
 dt[, let(week = week(date), month = month(date), year = year(date))]
-ret_week <- dt[, .(ret = sum(ret)), by = .(ticker, year, week)]
-ret_month <- dt[, .(ret = sum(ret)), by = .(ticker, year, month)]
-ret_year <- dt[, .(ret = sum(ret)), by = .(ticker, year)]
+ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, week)]
+ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, month)]
+ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year)]
 head(ret_year)
 ```
 
 Return for the portfolio:
 
 ```{r}
-port_ret_week <- dt[, .(ret = sum(wret)), by = .(year, week)]
-port_ret_month <- dt[, .(ret = sum(wret)), by = .(year, month)]
-port_ret_year <- dt[, .(ret = sum(wret)), by = year]
+port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, week)]
+port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, month)]
+port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year]
 head(port_ret_year)
 ```
 #### Compare with benchmark
@@ -98,15 +107,15 @@ Calculat the benchmark return:
 ```{r}
 bmr <- generate_benchmark(start_date, end_date) |>
   setorder(date) |>
-  _[, ret := logret(price)] |>
+  _[, ret := price / shift(price) - 1] |>
   na.omit("ret")
 
 port <- dt |>
-  _[, .(ret = sum(wret), ticker = "Portfolio"), by = date] |>
+  _[, .(ret = prod(1 + wret) - 1, ticker = "Portfolio"), by = date] |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
-  _[, cum_ret := cumsum(ret), by = ticker] |>
-  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")][]
+  _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
+  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
 ```
 
 Compare the portfolio with the benchmark performance:
@@ -143,7 +152,7 @@ Or turn it into a wide-format and display the performance as an area chart:
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
-  _[, diff := portfolio - benchmark][]
+  _[, diff := portfolio - benchmark]
 
 perf |>
   _[between(date, "2021-01-01", max(date))] |>
@@ -168,7 +177,8 @@ perf |>
     panel.grid.minor = element_blank(),
     axis.text = element_text(color = "black"),
     axis.title = element_blank(),
-    legend.title = element_blank()
+    legend.title = element_blank(),
+    legend.position = "none"
   )
 ```
 
@@ -176,7 +186,10 @@ perf |>
 library(gt)
 
 perf |>
-  _[date >= "2022-01-10", .(benchmark = last(benchmark) - first(benchmark), portfolio = last(portfolio) - first(portfolio)), by = .(year(date))] |>
+  _[date >= "2022-01-10", .(
+    benchmark = last(benchmark) - first(benchmark),
+    portfolio = last(portfolio) - first(portfolio)
+  ), by = .(year(date))] |>
   gt() |>
   fmt_markdown() |>
   tab_header(title = "Performance: Portfolio vs. Benchmark") |>

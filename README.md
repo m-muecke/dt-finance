@@ -62,8 +62,25 @@ head(dt)
 
 #### Calculate returns
 
-In most use-cases and asset classes working with log returns is
-preferred.
+``` r
+dt <- dt |>
+  setorder(ticker, date) |>
+  _[, ret := price / shift(price) - 1, by = ticker] |>
+  na.omit("ret") |>
+  _[, wret := ret * weight]
+head(dt)
+```
+
+       ticker       date    price weight country          ret          wret
+       <char>     <Date>    <num>  <num>  <char>        <num>         <num>
+    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.0013552454
+    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.0070014795
+    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.0057944315
+    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.0005964132
+    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.0051589943
+    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.0034300399
+
+Alternatively, calculate the log returns:
 
 ``` r
 logret <- function(x){
@@ -79,53 +96,44 @@ dt <- dt |>
 head(dt)
 ```
 
-       ticker       date    price weight country          ret         wret
-       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
-    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003382387  0.001352955
-    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017352273  0.006940909
-    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014382158  0.005752863
-    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001489923  0.000595969
-    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012981380 -0.005192552
-    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008538542  0.003415417
-
 #### Calculate weekly, monthly and yearly returns
 
 Return for each instrument:
 
 ``` r
 dt[, let(week = week(date), month = month(date), year = year(date))]
-ret_week <- dt[, .(ret = sum(ret)), by = .(ticker, year, week)]
-ret_month <- dt[, .(ret = sum(ret)), by = .(ticker, year, month)]
-ret_year <- dt[, .(ret = sum(ret)), by = .(ticker, year)]
+ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, week)]
+ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, month)]
+ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year)]
 head(ret_year)
 ```
 
        ticker  year         ret
        <char> <int>       <num>
-    1:   AAPL  2015  0.15657366
-    2:   AAPL  2016  0.13040908
-    3:   AAPL  2017  0.05506831
-    4:   AAPL  2018  0.19586294
-    5:   AAPL  2019 -0.34758024
-    6:   AAPL  2020  0.35821832
+    1:   AAPL  2015  0.16949691
+    2:   AAPL  2016  0.13929434
+    3:   AAPL  2017  0.05661279
+    4:   AAPL  2018  0.21636018
+    5:   AAPL  2019 -0.29360467
+    6:   AAPL  2020  0.43077795
 
 Return for the portfolio:
 
 ``` r
-port_ret_week <- dt[, .(ret = sum(wret)), by = .(year, week)]
-port_ret_month <- dt[, .(ret = sum(wret)), by = .(year, month)]
-port_ret_year <- dt[, .(ret = sum(wret)), by = year]
+port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, week)]
+port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, month)]
+port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year]
 head(port_ret_year)
 ```
 
         year         ret
        <int>       <num>
-    1:  2015  0.14636114
-    2:  2016  0.18143692
-    3:  2017  0.11589234
-    4:  2018  0.07554231
-    5:  2019 -0.20145152
-    6:  2020  0.03973387
+    1:  2015  0.17409548
+    2:  2016  0.21111375
+    3:  2017  0.13838336
+    4:  2018  0.09718639
+    5:  2019 -0.17371132
+    6:  2020  0.05690970
 
 #### Compare with benchmark
 
@@ -134,15 +142,15 @@ Calculat the benchmark return:
 ``` r
 bmr <- generate_benchmark(start_date, end_date) |>
   setorder(date) |>
-  _[, ret := logret(price)] |>
+  _[, ret := price / shift(price) - 1] |>
   na.omit("ret")
 
 port <- dt |>
-  _[, .(ret = sum(wret), ticker = "Portfolio"), by = date] |>
+  _[, .(ret = prod(1 + wret) - 1, ticker = "Portfolio"), by = date] |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
-  _[, cum_ret := cumsum(ret), by = ticker] |>
-  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")][]
+  _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
+  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
 ```
 
 Compare the portfolio with the benchmark performance:
@@ -170,7 +178,7 @@ port |>
   labs(title = "Performance: Portfolio vs. Benchmark")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-6-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-7-1.png)
 
 Or turn it into a wide-format and display the performance as an area
 chart:
@@ -180,7 +188,7 @@ chart:
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
-  _[, diff := portfolio - benchmark][]
+  _[, diff := portfolio - benchmark]
 
 perf |>
   _[between(date, "2021-01-01", max(date))] |>
@@ -205,17 +213,21 @@ perf |>
     panel.grid.minor = element_blank(),
     axis.text = element_text(color = "black"),
     axis.title = element_blank(),
-    legend.title = element_blank()
+    legend.title = element_blank(),
+    legend.position = "none"
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-7-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-8-1.png)
 
 ``` r
 library(gt)
 
 perf |>
-  _[date >= "2022-01-10", .(benchmark = last(benchmark) - first(benchmark), portfolio = last(portfolio) - first(portfolio)), by = .(year(date))] |>
+  _[date >= "2022-01-10", .(
+    benchmark = last(benchmark) - first(benchmark),
+    portfolio = last(portfolio) - first(portfolio)
+  ), by = .(year(date))] |>
   gt() |>
   fmt_markdown() |>
   tab_header(title = "Performance: Portfolio vs. Benchmark") |>
@@ -239,12 +251,12 @@ head(vola)
 
        ticker  year  daily_vola weekly_vola monthly_vola yearly_vola
        <char> <int>       <num>       <num>        <num>       <num>
-    1:   AAPL  2015 0.009838597  0.02199977   0.04508612   0.1561829
-    2:   AAPL  2016 0.010356613  0.02315809   0.04745996   0.1644061
-    3:   AAPL  2017 0.009602949  0.02147285   0.04400624   0.1524421
-    4:   AAPL  2018 0.010043538  0.02245803   0.04602527   0.1594362
-    5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
-    6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
+    1:   AAPL  2015 0.009842508  0.02200852   0.04510404   0.1562450
+    2:   AAPL  2016 0.010360105  0.02316590   0.04747597   0.1644616
+    3:   AAPL  2017 0.009606768  0.02148139   0.04402374   0.1525027
+    4:   AAPL  2018 0.010042423  0.02245554   0.04602016   0.1594185
+    5:   AAPL  2019 0.010333729  0.02310692   0.04735510   0.1640429
+    6:   AAPL  2020 0.009252727  0.02068973   0.04240132   0.1468825
 
 #### TODO:
 
