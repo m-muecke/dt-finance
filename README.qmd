@@ -6,6 +6,15 @@ format: gfm
 The goal of this document is to document common financial calculations using
 the `data.table` package using the latest `R >= 4.4` and `data.table >= 1.16` syntax.
 
+Load the required libraries:
+
+```{r}
+library(clock)
+library(data.table)
+library(ggplot2)
+library(gt)
+```
+
 ## Portfolio Management
 
 #### Generate data
@@ -13,8 +22,6 @@ the `data.table` package using the latest `R >= 4.4` and `data.table >= 1.16` sy
 Generate some fake stock prices for a few tickers.
 
 ```{r}
-library(data.table)
-
 set.seed(1994L)
 
 generate_prices <- function(ticker, start_date, end_date) {
@@ -53,10 +60,14 @@ dt <- dt[weights, on = "ticker"]
 head(dt)
 ```
 
+TODO: holdings table current date: name, total value, abs. and relative change in value (from start), relative weight
+TODO: doughnut chart of portfolio composition
+
 #### Calculate returns
 
 ```{r}
 dt <- dt |>
+  _[, market_value := price * weight] |>
   setorder(ticker, date) |>
   _[, ret := price / shift(price) - 1, by = ticker] |>
   na.omit("ret") |>
@@ -80,6 +91,24 @@ dt <- dt |>
 head(dt)
 ```
 
+```{r}
+#| dpi = 300
+dt |>
+  _[date >= add_months(end_date, -12L), .(market_value = sum(market_value)), by = date] |>
+  ggplot(aes(x = date, y = market_value)) +
+  geom_line() +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank()
+  ) +
+  labs(title = "Portfolio Value")
+```
+
 #### Calculate weekly, monthly and yearly returns
 
 Return for each instrument:
@@ -100,7 +129,8 @@ port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, month)]
 port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year]
 head(port_ret_year)
 ```
-#### Compare with benchmark
+
+#### Compare performance with a benchmark
 
 Calculat the benchmark return:
 
@@ -122,10 +152,8 @@ Compare the portfolio with the benchmark performance:
 
 ```{r}
 #| dpi = 300
-library(ggplot2)
-
 port |>
-  _[between(date, "2021-01-01", max(date))] |>
+  _[date > "2021-01-01"] |>
   ggplot(aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
   theme_minimal() +
@@ -155,7 +183,7 @@ perf <- port |>
   _[, diff := portfolio - benchmark]
 
 perf |>
-  _[between(date, "2021-01-01", max(date))] |>
+  _[date > "2021-01-01"] |>
   ggplot(aes(x = date)) +
   geom_ribbon(aes(
       ymin = pmin(portfolio, benchmark),
@@ -183,8 +211,6 @@ perf |>
 ```
 
 ```{r, eval = FALSE}
-library(gt)
-
 perf |>
   _[date >= "2022-01-10", .(
     benchmark = last(benchmark) - first(benchmark),

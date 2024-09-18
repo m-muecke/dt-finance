@@ -4,6 +4,15 @@ The goal of this document is to document common financial calculations
 using the `data.table` package using the latest `R >= 4.4` and
 `data.table >= 1.16` syntax.
 
+Load the required libraries:
+
+``` r
+library(clock)
+library(data.table)
+library(ggplot2)
+library(gt)
+```
+
 ## Portfolio Management
 
 #### Generate data
@@ -11,8 +20,6 @@ using the `data.table` package using the latest `R >= 4.4` and
 Generate some fake stock prices for a few tickers.
 
 ``` r
-library(data.table)
-
 set.seed(1994L)
 
 generate_prices <- function(ticker, start_date, end_date) {
@@ -60,10 +67,15 @@ head(dt)
     5:   AAPL 2015-01-05 102.44505    0.4     USA
     6:   AAPL 2015-01-06 101.12377    0.4     USA
 
+TODO: holdings table current date: name, total value, abs. and relative
+change in value (from start), relative weight TODO: doughnut chart of
+portfolio composition
+
 #### Calculate returns
 
 ``` r
 dt <- dt |>
+  _[, market_value := price * weight] |>
   setorder(ticker, date) |>
   _[, ret := price / shift(price) - 1, by = ticker] |>
   na.omit("ret") |>
@@ -71,14 +83,22 @@ dt <- dt |>
 head(dt)
 ```
 
-       ticker       date    price weight country          ret          wret
-       <char>     <Date>    <num>  <num>  <char>        <num>         <num>
-    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.0013552454
-    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.0070014795
-    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.0057944315
-    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.0005964132
-    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.0051589943
-    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.0034300399
+       ticker       date    price weight country market_value          ret
+       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4     USA     39.63892  0.003388113
+    2:   AAPL 2015-01-03 100.8319    0.4     USA     40.33275  0.017503699
+    3:   AAPL 2015-01-04 102.2925    0.4     USA     40.91701  0.014486079
+    4:   AAPL 2015-01-05 102.4451    0.4     USA     40.97802  0.001491033
+    5:   AAPL 2015-01-06 101.1238    0.4     USA     40.44951 -0.012897486
+    6:   AAPL 2015-01-07 101.9909    0.4     USA     40.79637  0.008575100
+                wret
+               <num>
+    1:  0.0013552454
+    2:  0.0070014795
+    3:  0.0057944315
+    4:  0.0005964132
+    5: -0.0051589943
+    6:  0.0034300399
 
 Alternatively, calculate the log returns:
 
@@ -95,6 +115,25 @@ dt <- dt |>
   _[, wret := ret * weight]
 head(dt)
 ```
+
+``` r
+dt |>
+  _[date >= add_months(end_date, -12L), .(market_value = sum(market_value)), by = date] |>
+  ggplot(aes(x = date, y = market_value)) +
+  geom_line() +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank()
+  ) +
+  labs(title = "Portfolio Value")
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-5-1.png)
 
 #### Calculate weekly, monthly and yearly returns
 
@@ -135,7 +174,7 @@ head(port_ret_year)
     5:  2019 -0.17371132
     6:  2020  0.05690970
 
-#### Compare with benchmark
+#### Compare performance with a benchmark
 
 Calculat the benchmark return:
 
@@ -156,10 +195,8 @@ port <- dt |>
 Compare the portfolio with the benchmark performance:
 
 ``` r
-library(ggplot2)
-
 port |>
-  _[between(date, "2021-01-01", max(date))] |>
+  _[date > "2021-01-01"] |>
   ggplot(aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
   theme_minimal() +
@@ -178,7 +215,7 @@ port |>
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-7-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
 
 Or turn it into a wide-format and display the performance as an area
 chart:
@@ -191,7 +228,7 @@ perf <- port |>
   _[, diff := portfolio - benchmark]
 
 perf |>
-  _[between(date, "2021-01-01", max(date))] |>
+  _[date > "2021-01-01"] |>
   ggplot(aes(x = date)) +
   geom_ribbon(aes(
       ymin = pmin(portfolio, benchmark),
@@ -218,11 +255,9 @@ perf |>
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-8-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-10-1.png)
 
 ``` r
-library(gt)
-
 perf |>
   _[date >= "2022-01-10", .(
     benchmark = last(benchmark) - first(benchmark),
