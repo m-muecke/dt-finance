@@ -51,12 +51,12 @@ start_date <- "2015-01-01"
 end_date <- Sys.Date()
 
 dt <- lapply(ticker, generate_prices, start_date, end_date) |> rbindlist()
-weights <- data.table(
+alloc <- data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
   country = c("USA", "USA", "USA", "USA")
 )
-dt <- dt[weights, on = "ticker"]
+dt <- dt[alloc, on = "ticker"]
 head(dt)
 ```
 
@@ -66,36 +66,24 @@ TODO: doughnut chart of portfolio composition
 #### Calculate returns
 
 ```{r}
-dt <- dt |>
-  _[, market_value := price * weight] |>
-  setorder(ticker, date) |>
-  _[, ret := price / shift(price) - 1, by = ticker] |>
-  na.omit("ret") |>
-  _[, wret := ret * weight]
-head(dt)
-```
-
-Alternatively, calculate the log returns:
-
-```{r, eval = FALSE}
-logret <- function(x){
+logret <- function(x) {
   x <- log(x)
   x - shift(x)
 }
 
 dt <- dt |>
   setorder(ticker, date) |>
-  _[, ret := logret(price), by = ticker] |>
+  _[, let(ret = price / shift(price) - 1, log_ret = logret(price)), by = ticker] |>
   na.omit("ret") |>
-  _[, wret := ret * weight]
+  _[, let(wret = ret * weight, value = price * weight)]
 head(dt)
 ```
 
 ```{r}
 #| dpi = 300
 dt |>
-  _[date >= add_months(end_date, -12L), .(market_value = sum(market_value)), by = date] |>
-  ggplot(aes(x = date, y = market_value)) +
+  _[date >= add_months(end_date, -12L), .(value = sum(value)), by = date] |>
+  ggplot(aes(x = date, y = value)) +
   geom_line() +
   theme_minimal() +
   theme(
@@ -114,19 +102,18 @@ dt |>
 Return for each instrument:
 
 ```{r}
-dt[, let(week = week(date), month = month(date), year = year(date))]
-ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, week)]
-ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, month)]
-ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year)]
+ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
+ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
+ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
 ```
 
 Return for the portfolio:
 
 ```{r}
-port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, week)]
-port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, month)]
-port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year]
+port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
+port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
+port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
 head(port_ret_year)
 ```
 
@@ -231,13 +218,23 @@ perf |>
 #### Calculate volatility
 
 ```{r}
-vola <- dt[, .(daily_vola = sd(ret)), by = .(ticker, year)] |>
+vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
     weekly_vola = daily_vola * sqrt(5L),
     monthly_vola = daily_vola * sqrt(21L),
     yearly_vola = daily_vola * sqrt(252L)
   )]
 head(vola)
+```
+
+```{r}
+wgt <- alloc$weight
+cov_mat <- dt |>
+  dcast(date ~ ticker, value.var = "log_ret") |>
+  _[, date := NULL] |>
+  cov(use = "pairwise.complete.obs")
+port_risk <- sqrt(t(wgt) %*% cov_mat %*% wgt)
+port_risk
 ```
 
 #### TODO:

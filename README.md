@@ -49,12 +49,12 @@ start_date <- "2015-01-01"
 end_date <- Sys.Date()
 
 dt <- lapply(ticker, generate_prices, start_date, end_date) |> rbindlist()
-weights <- data.table(
+alloc <- data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
   country = c("USA", "USA", "USA", "USA")
 )
-dt <- dt[weights, on = "ticker"]
+dt <- dt[alloc, on = "ticker"]
 head(dt)
 ```
 
@@ -74,52 +74,40 @@ portfolio composition
 #### Calculate returns
 
 ``` r
-dt <- dt |>
-  _[, market_value := price * weight] |>
-  setorder(ticker, date) |>
-  _[, ret := price / shift(price) - 1, by = ticker] |>
-  na.omit("ret") |>
-  _[, wret := ret * weight]
-head(dt)
-```
-
-       ticker       date    price weight country market_value          ret
-       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
-    1:   AAPL 2015-01-02  99.0973    0.4     USA     39.63892  0.003388113
-    2:   AAPL 2015-01-03 100.8319    0.4     USA     40.33275  0.017503699
-    3:   AAPL 2015-01-04 102.2925    0.4     USA     40.91701  0.014486079
-    4:   AAPL 2015-01-05 102.4451    0.4     USA     40.97802  0.001491033
-    5:   AAPL 2015-01-06 101.1238    0.4     USA     40.44951 -0.012897486
-    6:   AAPL 2015-01-07 101.9909    0.4     USA     40.79637  0.008575100
-                wret
-               <num>
-    1:  0.0013552454
-    2:  0.0070014795
-    3:  0.0057944315
-    4:  0.0005964132
-    5: -0.0051589943
-    6:  0.0034300399
-
-Alternatively, calculate the log returns:
-
-``` r
-logret <- function(x){
+logret <- function(x) {
   x <- log(x)
   x - shift(x)
 }
 
 dt <- dt |>
   setorder(ticker, date) |>
-  _[, ret := logret(price), by = ticker] |>
+  _[, let(ret = price / shift(price) - 1, log_ret = logret(price)), by = ticker] |>
   na.omit("ret") |>
-  _[, wret := ret * weight]
+  _[, let(wret = ret * weight, value = price * weight)]
 head(dt)
 ```
 
+       ticker       date    price weight country          ret      log_ret
+       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.003382387
+    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.017352273
+    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.014382158
+    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.001489923
+    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.012981380
+    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.008538542
+                wret    value
+               <num>    <num>
+    1:  0.0013552454 39.63892
+    2:  0.0070014795 40.33275
+    3:  0.0057944315 40.91701
+    4:  0.0005964132 40.97802
+    5: -0.0051589943 40.44951
+    6:  0.0034300399 40.79637
+
 ``` r
 dt |>
-  _[date >= add_months(end_date, -12L), .(market_value = sum(market_value)), by = date] |>
-  ggplot(aes(x = date, y = market_value)) +
+  _[date >= add_months(end_date, -12L), .(value = sum(value)), by = date] |>
+  ggplot(aes(x = date, y = value)) +
   geom_line() +
   theme_minimal() +
   theme(
@@ -133,17 +121,16 @@ dt |>
   labs(title = "Portfolio Value")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-5-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-4-1.png)
 
 #### Calculate weekly, monthly and yearly returns
 
 Return for each instrument:
 
 ``` r
-dt[, let(week = week(date), month = month(date), year = year(date))]
-ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, week)]
-ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year, month)]
-ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year)]
+ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
+ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
+ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
 ```
 
@@ -159,20 +146,20 @@ head(ret_year)
 Return for the portfolio:
 
 ``` r
-port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, week)]
-port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(year, month)]
-port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year]
+port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
+port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
+port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
 head(port_ret_year)
 ```
 
         year         ret
        <int>       <num>
-    1:  2015  0.17409548
-    2:  2016  0.21111375
-    3:  2017  0.13838336
-    4:  2018  0.09718639
-    5:  2019 -0.17371132
-    6:  2020  0.05690970
+    1:  2015  0.18005455
+    2:  2016  0.21100059
+    3:  2017  0.12464566
+    4:  2018  0.10376614
+    5:  2019 -0.17348333
+    6:  2020  0.06867406
 
 #### Compare performance with a benchmark
 
@@ -215,7 +202,7 @@ port |>
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-8-1.png)
 
 Or turn it into a wide-format and display the performance as an area
 chart:
@@ -255,7 +242,7 @@ perf |>
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-10-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
 
 ``` r
 perf |>
@@ -275,7 +262,7 @@ perf |>
 #### Calculate volatility
 
 ``` r
-vola <- dt[, .(daily_vola = sd(ret)), by = .(ticker, year)] |>
+vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
     weekly_vola = daily_vola * sqrt(5L),
     monthly_vola = daily_vola * sqrt(21L),
@@ -286,12 +273,25 @@ head(vola)
 
        ticker  year  daily_vola weekly_vola monthly_vola yearly_vola
        <char> <int>       <num>       <num>        <num>       <num>
-    1:   AAPL  2015 0.009842508  0.02200852   0.04510404   0.1562450
-    2:   AAPL  2016 0.010360105  0.02316590   0.04747597   0.1644616
-    3:   AAPL  2017 0.009606768  0.02148139   0.04402374   0.1525027
-    4:   AAPL  2018 0.010042423  0.02245554   0.04602016   0.1594185
-    5:   AAPL  2019 0.010333729  0.02310692   0.04735510   0.1640429
-    6:   AAPL  2020 0.009252727  0.02068973   0.04240132   0.1468825
+    1:   AAPL  2015 0.009838597  0.02199977   0.04508612   0.1561829
+    2:   AAPL  2016 0.010356613  0.02315809   0.04745996   0.1644061
+    3:   AAPL  2017 0.009602949  0.02147285   0.04400624   0.1524421
+    4:   AAPL  2018 0.010043538  0.02245803   0.04602527   0.1594362
+    5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
+    6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
+
+``` r
+wgt <- alloc$weight
+cov_mat <- dt |>
+  dcast(date ~ ticker, value.var = "log_ret") |>
+  _[, date := NULL] |>
+  cov(use = "pairwise.complete.obs")
+port_risk <- sqrt(t(wgt) %*% cov_mat %*% wgt)
+port_risk
+```
+
+                [,1]
+    [1,] 0.005413025
 
 #### TODO:
 
