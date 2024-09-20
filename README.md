@@ -1,4 +1,4 @@
-# Finance with data.table Notes
+# Finance with data.table
 
 Just a place to store some code snippets and notes on finance with using
 the latest `data.table` package.
@@ -153,12 +153,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.19086576
-    2:  2016  0.19909201
-    3:  2017  0.11799043
-    4:  2018  0.11936710
-    5:  2019 -0.17865391
-    6:  2020  0.07699751
+    1:  2015  0.18739233
+    2:  2016  0.20202264
+    3:  2017  0.11816695
+    4:  2018  0.12052343
+    5:  2019 -0.17881575
+    6:  2020  0.07800012
 
 #### Compare performance with a benchmark
 
@@ -290,7 +290,7 @@ port_risk
 ```
 
                 [,1]
-    [1,] 0.005421037
+    [1,] 0.005483201
 
 #### TODO:
 
