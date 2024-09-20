@@ -1,8 +1,7 @@
-# data.table finance notes
+# Finance with data.table Notes
 
-The goal of this document is to document common financial calculations
-using the `data.table` package using the latest `R >= 4.4` and
-`data.table >= 1.16` syntax.
+Just a place to store some code snippets and notes on finance with using
+the latest `data.table` package.
 
 Load the required libraries:
 
@@ -154,12 +153,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.18005455
-    2:  2016  0.21100059
-    3:  2017  0.12464566
-    4:  2018  0.10376614
-    5:  2019 -0.17348333
-    6:  2020  0.06867406
+    1:  2015  0.19086576
+    2:  2016  0.19909201
+    3:  2017  0.11799043
+    4:  2018  0.11936710
+    5:  2019 -0.17865391
+    6:  2020  0.07699751
 
 #### Compare performance with a benchmark
 
@@ -291,7 +290,7 @@ port_risk
 ```
 
                 [,1]
-    [1,] 0.005413025
+    [1,] 0.005421037
 
 #### TODO:
 
