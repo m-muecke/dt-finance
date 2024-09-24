@@ -171,16 +171,19 @@ perf <- port |>
 perf |>
   _[date > "2021-01-01"] |>
   ggplot(aes(x = date)) +
-  geom_ribbon(aes(
+  geom_ribbon(
+    aes(
       ymin = pmin(portfolio, benchmark),
       ymax = pmax(portfolio, benchmark),
       fill = diff > 0
     ),
-    alpha = 0.4
+    alpha = 0.4,
+    show.legend = FALSE
   ) +
-  geom_line(aes(y = portfolio), color = "darkblue") +
-  geom_line(aes(y = benchmark), color = "black") +
-  scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
+  geom_line(aes(y = portfolio, color = "Portfolio")) +
+  geom_line(aes(y = benchmark, color = "Benchmark")) +
+  scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
+  scale_fill_manual(values = c("TRUE" = "#00A651", "FALSE" = "#FF0000")) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 2L)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark") +
   theme_minimal() +
@@ -192,7 +195,7 @@ perf |>
     axis.text = element_text(color = "black"),
     axis.title = element_blank(),
     legend.title = element_blank(),
-    legend.position = "none"
+    legend.position = "bottom"
   )
 ```
 
