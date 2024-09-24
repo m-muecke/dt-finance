@@ -9,7 +9,6 @@ Load the required libraries:
 library(clock)
 library(data.table)
 library(ggplot2)
-library(gt)
 ```
 
 ## Portfolio Management
@@ -153,12 +152,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.18739233
-    2:  2016  0.20202264
-    3:  2017  0.11816695
-    4:  2018  0.12052343
-    5:  2019 -0.17881575
-    6:  2020  0.07800012
+    1:  2015  0.17716080
+    2:  2016  0.20719884
+    3:  2017  0.13844681
+    4:  2018  0.10518440
+    5:  2019 -0.16769546
+    6:  2020  0.05554336
 
 #### Compare performance with a benchmark
 
@@ -248,12 +247,7 @@ perf |>
   _[date >= "2022-01-10", .(
     benchmark = last(benchmark) - first(benchmark),
     portfolio = last(portfolio) - first(portfolio)
-  ), by = .(year(date))] |>
-  gt() |>
-  fmt_markdown() |>
-  tab_header(title = "Performance: Portfolio vs. Benchmark") |>
-  fmt_percent(columns = c("benchmark", "portfolio")) |>
-  cols_label(year = "Year", benchmark = "Benchmark", portfolio = "Portfolio")
+  ), by = .(year(date))]
 ```
 
 #### Analyse the portfolio exposure
@@ -290,7 +284,7 @@ port_risk
 ```
 
                 [,1]
-    [1,] 0.005483201
+    [1,] 0.005453805
 
 #### TODO:
 
