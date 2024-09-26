@@ -152,12 +152,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.17716080
-    2:  2016  0.20719884
-    3:  2017  0.13844681
-    4:  2018  0.10518440
-    5:  2019 -0.16769546
-    6:  2020  0.05554336
+    1:  2015  0.17376677
+    2:  2016  0.20443254
+    3:  2017  0.14335826
+    4:  2018  0.10910178
+    5:  2019 -0.17514537
+    6:  2020  0.06018265
 
 #### Compare performance with a benchmark
 
@@ -206,7 +206,6 @@ Or turn it into a wide-format and display the performance as an area
 chart:
 
 ``` r
-# TODO: remove the legend with T/F and bmr/port labels
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
@@ -276,18 +275,23 @@ head(vola)
     5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
     6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
 
+Portfolio risk is defined as:
+
+$$
+\sigma_p = \sqrt{w^T \Sigma w}
+$$
+
 ``` r
 wgt <- alloc$weight
 cov_mat <- dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
   _[, date := NULL] |>
   cov(use = "pairwise.complete.obs")
-port_risk <- sqrt(t(wgt) %*% cov_mat %*% wgt)
+port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-                [,1]
-    [1,] 0.005453805
+    [1] 0.005503882
 
 #### TODO:
 

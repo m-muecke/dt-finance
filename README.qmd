@@ -223,13 +223,19 @@ vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
 head(vola)
 ```
 
+Portfolio risk is defined as:
+
+$$
+\sigma_p = \sqrt{w^T \Sigma w}
+$$
+
 ```{r}
 wgt <- alloc$weight
 cov_mat <- dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
   _[, date := NULL] |>
   cov(use = "pairwise.complete.obs")
-port_risk <- sqrt(t(wgt) %*% cov_mat %*% wgt)
+port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
