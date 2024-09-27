@@ -223,6 +223,8 @@ vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
 head(vola)
 ```
 
+#### Portfolio risk
+
 Portfolio risk is defined as:
 
 $$
@@ -239,8 +241,37 @@ port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
+#### Drawdown
+
+Drawdown is defined as follows:
+
+$$
+DD(t) = \frac{V(t) - \max_{0 \leq s \leq t} V(s)}{\max_{0 \leq s \leq t} V(s)}
+$$
+
+Instrument drawdown:
+
+```{r}
+drawdown <- copy(dt) |>
+  _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
+  _[, drawdown := (cum_ret - cummax(cum_ret)), by = ticker]
+head(drawdown)
+```
+
+Portfolio drawdown:
+
+```{r}
+drawdown <- dt |>
+  _[, .(wret = sum(wret)), by = date] |>
+  _[, cum_ret := cumprod(1 + wret) - 1] |>
+  _[, drawdown := (cum_ret - cummax(cum_ret))]
+head(drawdown)
+```
+
+```{r}
+drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
+```
+
 #### TODO:
 
-- Max/average drawdown
 - Tacking error
-- Portfolio risk

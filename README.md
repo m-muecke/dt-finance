@@ -152,12 +152,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.17376677
-    2:  2016  0.20443254
-    3:  2017  0.14335826
-    4:  2018  0.10910178
-    5:  2019 -0.17514537
-    6:  2020  0.06018265
+    1:  2015  0.16997757
+    2:  2016  0.20279312
+    3:  2017  0.13966659
+    4:  2018  0.10969355
+    5:  2019 -0.16960268
+    6:  2020  0.05320403
 
 #### Compare performance with a benchmark
 
@@ -275,6 +275,8 @@ head(vola)
     5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
     6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
 
+#### Portfolio risk
+
 Portfolio risk is defined as:
 
 $$
@@ -291,10 +293,69 @@ port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-    [1] 0.005503882
+    [1] 0.005414103
+
+#### Drawdown
+
+Drawdown is defined as follows:
+
+$$
+DD(t) = \frac{V(t) - \max_{0 \leq s \leq t} V(s)}{\max_{0 \leq s \leq t} V(s)}
+$$
+
+Instrument drawdown:
+
+``` r
+drawdown <- copy(dt) |>
+  _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
+  _[, drawdown := (cum_ret - cummax(cum_ret)), by = ticker]
+head(drawdown)
+```
+
+       ticker       date    price weight country          ret      log_ret
+       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.003382387
+    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.017352273
+    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.014382158
+    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.001489923
+    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.012981380
+    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.008538542
+                wret    value     cum_ret     drawdown
+               <num>    <num>       <num>        <num>
+    1:  0.0013552454 39.63892 0.003388113  0.000000000
+    2:  0.0070014795 40.33275 0.020951117  0.000000000
+    3:  0.0057944315 40.91701 0.035740695  0.000000000
+    4:  0.0005964132 40.97802 0.037285018  0.000000000
+    5: -0.0051589943 40.44951 0.023906650 -0.013378369
+    6:  0.0034300399 40.79637 0.032686751 -0.004598267
+
+Portfolio drawdown:
+
+``` r
+drawdown <- dt |>
+  _[, .(wret = sum(wret)), by = date] |>
+  _[, cum_ret := cumprod(1 + wret) - 1] |>
+  _[, drawdown := (cum_ret - cummax(cum_ret))]
+head(drawdown)
+```
+
+             date          wret      cum_ret     drawdown
+           <Date>         <num>        <num>        <num>
+    1: 2015-01-02  0.0009232983 0.0009232983  0.000000000
+    2: 2015-01-03  0.0076900893 0.0086204878  0.000000000
+    3: 2015-01-04  0.0072113227 0.0158939757  0.000000000
+    4: 2015-01-05 -0.0038553063 0.0119773933 -0.003916582
+    5: 2015-01-06 -0.0035968309 0.0083374817 -0.007556494
+    6: 2015-01-07  0.0050644850 0.0134441918 -0.002449784
+
+``` r
+drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
+```
+
+       min_drawdown avg_drawdown
+              <num>        <num>
+    1:   -0.5223977   -0.1482553
 
 #### TODO:
 
-- Max/average drawdown
 - Tacking error
-- Portfolio risk
