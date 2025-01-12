@@ -1,7 +1,17 @@
 ---
-title: "Finance with data.table"
-format: gfm
+output: github_document
 ---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
 
 Just a place to store some code snippets and notes on finance with
 using the latest `data.table` package.
@@ -21,7 +31,7 @@ library(ggplot2)
 Generate some fake stock prices for a few tickers.
 
 ```{r}
-set.seed(1994L)
+set.seed(1994)
 
 generate_prices <- function(ticker, start_date, end_date) {
   dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
@@ -154,7 +164,7 @@ port |>
     legend.position = "bottom"
   ) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 2L)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 2)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
@@ -213,12 +223,17 @@ perf |>
 
 #### Calculate volatility
 
+Note this is scaling volatility by $\sqrt{h}$, which has some shortcomings,
+see for example
+[Diebold et.al. (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
+
+
 ```{r}
 vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
-    weekly_vola = daily_vola * sqrt(5L),
-    monthly_vola = daily_vola * sqrt(21L),
-    yearly_vola = daily_vola * sqrt(252L)
+    weekly_vola = daily_vola * sqrt(5),
+    monthly_vola = daily_vola * sqrt(21),
+    yearly_vola = daily_vola * sqrt(252)
   )]
 head(vola)
 ```
@@ -243,10 +258,10 @@ port_risk
 
 #### Drawdown
 
-Drawdown is defined as follows:
+Maximum Drawdown is defined as follows:
 
 $$
-DD(t) = \frac{V(t) - \max_{0 \leq s \leq t} V(s)}{\max_{0 \leq s \leq t} V(s)}
+MDD = \max_{i \leq j} \left( \frac{V_j - V_i}{V_i} \right)
 $$
 
 Instrument drawdown:
