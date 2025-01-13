@@ -1,5 +1,5 @@
 README.md: README.Rmd
-	@Rscript -e 'litedown::fuse("$<")'
+	@Rscript -e 'litedown::fuse("$<", ".md")'
 
 render: README.md
 

@@ -1,6 +1,5 @@
 ---
 title: "Finance with {data.table}"
-output: markdown
 ---
 
 Just a place to store some code snippets and notes on finance with
