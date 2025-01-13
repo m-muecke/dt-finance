@@ -1,17 +1,7 @@
 ---
-output: github_document
+title: "Finance with {data.table}"
+output: markdown
 ---
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  out.width = "100%"
-)
-```
 
 Just a place to store some code snippets and notes on finance with
 using the latest `data.table` package.
