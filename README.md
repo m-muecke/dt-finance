@@ -1,13 +1,11 @@
----
-title: "Finance with {data.table}"
----
+# Finance with {data.table}
 
-Just a place to store some code snippets and notes on finance with
-using the latest `data.table` package.
+Just a place to store some code snippets and notes on finance with using
+the latest `data.table` package.
 
 Load the required libraries:
 
-``` {.r}
+``` r
 library(clock)
 library(data.table)
 library(ggplot2)
@@ -19,7 +17,7 @@ library(ggplot2)
 
 Generate some fake stock prices for a few tickers.
 
-``` {.r}
+``` r
 set.seed(1994)
 
 generate_prices <- function(ticker, start_date, end_date) {
@@ -57,22 +55,23 @@ alloc <- data.table(
 dt <- dt[alloc, on = "ticker"]
 head(dt)
 ```
-|ticker|date|price|weight|country|
-|---|---|--:|--:|---|
-|AAPL|2015-01-01| 98.763|0.4|USA|
-|AAPL|2015-01-02| 99.097|0.4|USA|
-|AAPL|2015-01-03|100.832|0.4|USA|
-|AAPL|2015-01-04|102.293|0.4|USA|
-|AAPL|2015-01-05|102.445|0.4|USA|
-|AAPL|2015-01-06|101.124|0.4|USA|
 
+       ticker       date     price weight country
+       <char>     <Date>     <num>  <num>  <char>
+    1:   AAPL 2015-01-01  98.76269    0.4     USA
+    2:   AAPL 2015-01-02  99.09730    0.4     USA
+    3:   AAPL 2015-01-03 100.83187    0.4     USA
+    4:   AAPL 2015-01-04 102.29253    0.4     USA
+    5:   AAPL 2015-01-05 102.44505    0.4     USA
+    6:   AAPL 2015-01-06 101.12377    0.4     USA
 
-TODO: holdings table current date: name, total value, abs. and relative change in value (from start), relative weight
-TODO: doughnut chart of portfolio composition
+TODO: holdings table current date: name, total value, abs. and relative
+change in value (from start), relative weight TODO: doughnut chart of
+portfolio composition
 
 #### Calculate returns
 
-``` {.r}
+``` r
 logret <- function(x) {
   x <- log(x)
   x - shift(x)
@@ -85,17 +84,25 @@ dt <- dt |>
   _[, let(wret = ret * weight, value = price * weight)]
 head(dt)
 ```
-|ticker|date|price|weight|country|ret|log_ret|wret|value|
-|---|---|--:|--:|---|--:|--:|--:|--:|
-|AAPL|2015-01-02| 99.097|0.4|USA| 0.003| 0.003| 0.001|39.639|
-|AAPL|2015-01-03|100.832|0.4|USA| 0.018| 0.017| 0.007|40.333|
-|AAPL|2015-01-04|102.293|0.4|USA| 0.014| 0.014| 0.006|40.917|
-|AAPL|2015-01-05|102.445|0.4|USA| 0.001| 0.001| 0.001|40.978|
-|AAPL|2015-01-06|101.124|0.4|USA|-0.013|-0.013|-0.005|40.450|
-|AAPL|2015-01-07|101.991|0.4|USA| 0.009| 0.009| 0.003|40.796|
 
+       ticker       date    price weight country          ret      log_ret
+       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.003382387
+    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.017352273
+    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.014382158
+    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.001489923
+    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.012981380
+    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.008538542
+                wret    value
+               <num>    <num>
+    1:  0.0013552454 39.63892
+    2:  0.0070014795 40.33275
+    3:  0.0057944315 40.91701
+    4:  0.0005964132 40.97802
+    5: -0.0051589943 40.44951
+    6:  0.0034300399 40.79637
 
-``` {.r}
+``` r
 dt |>
   _[date >= add_months(end_date, -12L), .(value = sum(value)), by = date] |>
   ggplot(aes(x = date, y = value)) +
@@ -111,51 +118,52 @@ dt |>
   ) +
   labs(title = "Portfolio Value")
 ```
-![](<README__files/chunk-4-1.png>)
+
+![](README_files/figure-commonmark/unnamed-chunk-4-1.png)
 
 #### Calculate weekly, monthly and yearly returns
 
 Return for each instrument:
 
-``` {.r}
+``` r
 ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
 ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
 ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
 ```
-|ticker|year|ret|
-|---|--:|--:|
-|AAPL|2015| 0.169|
-|AAPL|2016| 0.139|
-|AAPL|2017| 0.057|
-|AAPL|2018| 0.216|
-|AAPL|2019|-0.294|
-|AAPL|2020| 0.431|
 
+       ticker  year         ret
+       <char> <int>       <num>
+    1:   AAPL  2015  0.16949691
+    2:   AAPL  2016  0.13929434
+    3:   AAPL  2017  0.05661279
+    4:   AAPL  2018  0.21636018
+    5:   AAPL  2019 -0.29360467
+    6:   AAPL  2020  0.43077795
 
 Return for the portfolio:
 
-``` {.r}
+``` r
 port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
 port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
 port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
 head(port_ret_year)
 ```
-|year|ret|
-|--:|--:|
-|2015| 0.217|
-|2016| 0.147|
-|2017| 0.089|
-|2018| 0.098|
-|2019|-0.212|
-|2020| 0.168|
 
+        year         ret
+       <int>       <num>
+    1:  2015  0.21730363
+    2:  2016  0.14672385
+    3:  2017  0.08923894
+    4:  2018  0.09766598
+    5:  2019 -0.21240290
+    6:  2020  0.16825878
 
 #### Compare performance with a benchmark
 
 Calculat the benchmark return:
 
-``` {.r}
+``` r
 bmr <- generate_benchmark(start_date, end_date) |>
   setorder(date) |>
   _[, ret := price / shift(price) - 1] |>
@@ -171,7 +179,7 @@ port <- dt |>
 
 Compare the portfolio with the benchmark performance:
 
-``` {.r}
+``` r
 port |>
   _[date > "2021-01-01"] |>
   ggplot(aes(x = date, y = cum_ret, color = ticker)) +
@@ -191,11 +199,13 @@ port |>
   scale_y_continuous(labels = scales::percent_format(accuracy = 2)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
-![](<README__files/chunk-8-1.png>)
 
-Or turn it into a wide-format and display the performance as an area chart:
+![](README_files/figure-commonmark/unnamed-chunk-8-1.png)
 
-``` {.r}
+Or turn it into a wide-format and display the performance as an area
+chart:
+
+``` r
 perf <- port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
@@ -231,9 +241,10 @@ perf |>
     legend.position = "bottom"
   )
 ```
-![](<README__files/chunk-9-1.png>)
 
-``` {.r}
+![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
+
+``` r
 perf |>
   _[date >= "2022-01-10", .(
     benchmark = last(benchmark) - first(benchmark),
@@ -243,16 +254,13 @@ perf |>
 
 #### Analyse the portfolio exposure
 
-
-
 #### Calculate volatility
 
-Note this is scaling volatility by $\sqrt{h}$, which has some shortcomings,
-see for example
-[Diebold et.al. (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
+Note this is scaling volatility by $\sqrt{h}$, which has some
+shortcomings, see for example [Diebold et.al.
+(1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
 
-
-``` {.r}
+``` r
 vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
     weekly_vola = daily_vola * sqrt(5),
@@ -261,15 +269,15 @@ vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   )]
 head(vola)
 ```
-|ticker|year|daily_vola|weekly_vola|monthly_vola|yearly_vola|
-|---|--:|--:|--:|--:|--:|
-|AAPL|2015|0.010|0.022|0.045|0.156|
-|AAPL|2016|0.010|0.023|0.047|0.164|
-|AAPL|2017|0.010|0.021|0.044|0.152|
-|AAPL|2018|0.010|0.022|0.046|0.159|
-|AAPL|2019|0.010|0.023|0.047|0.164|
-|AAPL|2020|0.009|0.021|0.042|0.147|
 
+       ticker  year  daily_vola weekly_vola monthly_vola yearly_vola
+       <char> <int>       <num>       <num>        <num>       <num>
+    1:   AAPL  2015 0.009838597  0.02199977   0.04508612   0.1561829
+    2:   AAPL  2016 0.010356613  0.02315809   0.04745996   0.1644061
+    3:   AAPL  2017 0.009602949  0.02147285   0.04400624   0.1524421
+    4:   AAPL  2018 0.010043538  0.02245803   0.04602527   0.1594362
+    5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
+    6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
 
 #### Portfolio risk
 
@@ -279,7 +287,7 @@ $$
 \sigma_p = \sqrt{w^T \Sigma w}
 $$
 
-``` {.r}
+``` r
 wgt <- alloc$weight
 cov_mat <- dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
@@ -289,9 +297,7 @@ port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-```
-#> [1] 0.005584329
-```
+    [1] 0.005584329
 
 #### Drawdown
 
@@ -303,48 +309,56 @@ $$
 
 Instrument drawdown:
 
-``` {.r}
+``` r
 drawdown <- copy(dt) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
   _[, drawdown := (cum_ret - cummax(cum_ret)), by = ticker]
 head(drawdown)
 ```
-|ticker|date|price|weight|country|ret|log_ret|wret|value|cum_ret|drawdown|
-|---|---|--:|--:|---|--:|--:|--:|--:|--:|--:|
-|AAPL|2015-01-02| 99.097|0.4|USA| 0.003| 0.003| 0.001|39.639|0.003| 0.000|
-|AAPL|2015-01-03|100.832|0.4|USA| 0.018| 0.017| 0.007|40.333|0.021| 0.000|
-|AAPL|2015-01-04|102.293|0.4|USA| 0.014| 0.014| 0.006|40.917|0.036| 0.000|
-|AAPL|2015-01-05|102.445|0.4|USA| 0.001| 0.001| 0.001|40.978|0.037| 0.000|
-|AAPL|2015-01-06|101.124|0.4|USA|-0.013|-0.013|-0.005|40.450|0.024|-0.013|
-|AAPL|2015-01-07|101.991|0.4|USA| 0.009| 0.009| 0.003|40.796|0.033|-0.005|
 
+       ticker       date    price weight country          ret      log_ret
+       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.003382387
+    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.017352273
+    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.014382158
+    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.001489923
+    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.012981380
+    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.008538542
+                wret    value     cum_ret     drawdown
+               <num>    <num>       <num>        <num>
+    1:  0.0013552454 39.63892 0.003388113  0.000000000
+    2:  0.0070014795 40.33275 0.020951117  0.000000000
+    3:  0.0057944315 40.91701 0.035740695  0.000000000
+    4:  0.0005964132 40.97802 0.037285018  0.000000000
+    5: -0.0051589943 40.44951 0.023906650 -0.013378369
+    6:  0.0034300399 40.79637 0.032686751 -0.004598267
 
 Portfolio drawdown:
 
-``` {.r}
+``` r
 drawdown <- dt |>
   _[, .(wret = sum(wret)), by = date] |>
   _[, cum_ret := cumprod(1 + wret) - 1] |>
   _[, drawdown := (cum_ret - cummax(cum_ret))]
 head(drawdown)
 ```
-|date|wret|cum_ret|drawdown|
-|---|--:|--:|--:|
-|2015-01-02| 0.003|0.003| 0.000|
-|2015-01-03| 0.014|0.017| 0.000|
-|2015-01-04| 0.006|0.023| 0.000|
-|2015-01-05| 0.004|0.027| 0.000|
-|2015-01-06|-0.006|0.021|-0.006|
-|2015-01-07| 0.004|0.025|-0.003|
 
+             date         wret     cum_ret     drawdown
+           <Date>        <num>       <num>        <num>
+    1: 2015-01-02  0.003214273 0.003214273  0.000000000
+    2: 2015-01-03  0.013832220 0.017090954  0.000000000
+    3: 2015-01-04  0.005712519 0.022901105  0.000000000
+    4: 2015-01-05  0.004228235 0.027226172  0.000000000
+    5: 2015-01-06 -0.006150852 0.020907856 -0.006318316
+    6: 2015-01-07  0.003680844 0.024665659 -0.002560513
 
-``` {.r}
+``` r
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
 ```
-|min_drawdown|avg_drawdown|
-|--:|--:|
-|-0.574|-0.146|
 
+       min_drawdown avg_drawdown
+              <num>        <num>
+    1:   -0.5742111   -0.1455153
 
 #### TODO:
 

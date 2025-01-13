@@ -1,9 +1,9 @@
-README.md: README.Rmd
-	@Rscript -e 'litedown::fuse("$<", ".md")'
+README.md: README.qmd
+	@quarto render $<
 
 render: README.md
 
-preview: README.Rmd
-	@Rscript -e 'litedown::roam(open = TRUE); while(TRUE) Sys.sleep(0.01)'
+preview: README.qmd
+	@quarto preview $<
 
 .PHONY: render preview

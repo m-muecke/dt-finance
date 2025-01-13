@@ -1,5 +1,6 @@
 ---
 title: "Finance with {data.table}"
+format: gfm
 ---
 
 Just a place to store some code snippets and notes on finance with
