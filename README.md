@@ -21,7 +21,7 @@ Generate some fake stock prices for a few tickers.
 set.seed(1994)
 
 generate_prices <- function(ticker, start_date, end_date) {
-  dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
+  dates <- seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n <- length(dates)
   prices <- cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
   data.table(
@@ -32,7 +32,7 @@ generate_prices <- function(ticker, start_date, end_date) {
 }
 
 generate_benchmark <- function(start_date, end_date) {
-  dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
+  dates <- seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n <- length(dates)
   prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
   data.table(
@@ -46,7 +46,7 @@ ticker <- c("AAPL", "GOOGL", "MSFT", "AMZN")
 start_date <- "2015-01-01"
 end_date <- Sys.Date()
 
-dt <- lapply(ticker, generate_prices, start_date, end_date) |> rbindlist()
+dt <- rbindlist(lapply(ticker, generate_prices, start_date, end_date))
 alloc <- data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
@@ -152,12 +152,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.21730363
-    2:  2016  0.14672385
-    3:  2017  0.08923894
-    4:  2018  0.09766598
-    5:  2019 -0.21240290
-    6:  2020  0.16825878
+    1:  2015  0.11197525
+    2:  2016  0.23505665
+    3:  2017  0.09765000
+    4:  2018 -0.04271348
+    5:  2019 -0.14353103
+    6:  2020  0.21490787
 
 #### Compare performance with a benchmark
 
@@ -174,7 +174,7 @@ port <- dt |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
-  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
+  _[, ticker := replace(ticker, ticker != "Portfolio", "Benchmark")]
 ```
 
 Compare the portfolio with the benchmark performance:
@@ -246,10 +246,14 @@ perf |>
 
 ``` r
 perf |>
-  _[date >= "2022-01-10", .(
-    benchmark = last(benchmark) - first(benchmark),
-    portfolio = last(portfolio) - first(portfolio)
-  ), by = .(year(date))]
+  _[
+    date >= "2022-01-10",
+    .(
+      benchmark = last(benchmark) - first(benchmark),
+      portfolio = last(portfolio) - first(portfolio)
+    ),
+    by = .(year(date))
+  ]
 ```
 
 #### Analyse the portfolio exposure
@@ -297,7 +301,7 @@ port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-    [1] 0.005584329
+    [1] 0.00541362
 
 #### Drawdown
 
@@ -343,14 +347,14 @@ drawdown <- dt |>
 head(drawdown)
 ```
 
-             date         wret     cum_ret     drawdown
-           <Date>        <num>       <num>        <num>
-    1: 2015-01-02  0.003214273 0.003214273  0.000000000
-    2: 2015-01-03  0.013832220 0.017090954  0.000000000
-    3: 2015-01-04  0.005712519 0.022901105  0.000000000
-    4: 2015-01-05  0.004228235 0.027226172  0.000000000
-    5: 2015-01-06 -0.006150852 0.020907856 -0.006318316
-    6: 2015-01-07  0.003680844 0.024665659 -0.002560513
+             date          wret      cum_ret      drawdown
+           <Date>         <num>        <num>         <num>
+    1: 2015-01-02 -0.0028002676 -0.002800268  0.0000000000
+    2: 2015-01-03  0.0094504585  0.006623727  0.0000000000
+    3: 2015-01-04 -0.0028169791  0.003788089 -0.0028356380
+    4: 2015-01-05  0.0023533344  0.006150338 -0.0004733889
+    5: 2015-01-06 -0.0054367017  0.000680199 -0.0059435281
+    6: 2015-01-07  0.0007667473  0.001447468 -0.0051762593
 
 ``` r
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
@@ -358,7 +362,7 @@ drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawd
 
        min_drawdown avg_drawdown
               <num>        <num>
-    1:   -0.5742111   -0.1455153
+    1:   -0.4676764   -0.1229879
 
 #### TODO:
 

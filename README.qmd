@@ -24,7 +24,7 @@ Generate some fake stock prices for a few tickers.
 set.seed(1994)
 
 generate_prices <- function(ticker, start_date, end_date) {
-  dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
+  dates <- seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n <- length(dates)
   prices <- cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
   data.table(
@@ -35,7 +35,7 @@ generate_prices <- function(ticker, start_date, end_date) {
 }
 
 generate_benchmark <- function(start_date, end_date) {
-  dates <- seq.Date(as.Date(start_date), as.Date(end_date), by = "days")
+  dates <- seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n <- length(dates)
   prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
   data.table(
@@ -49,7 +49,7 @@ ticker <- c("AAPL", "GOOGL", "MSFT", "AMZN")
 start_date <- "2015-01-01"
 end_date <- Sys.Date()
 
-dt <- lapply(ticker, generate_prices, start_date, end_date) |> rbindlist()
+dt <- rbindlist(lapply(ticker, generate_prices, start_date, end_date))
 alloc <- data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
@@ -131,7 +131,7 @@ port <- dt |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
-  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
+  _[, ticker := replace(ticker, ticker != "Portfolio", "Benchmark")]
 ```
 
 Compare the portfolio with the benchmark performance:
@@ -200,10 +200,14 @@ perf |>
 
 ```{r, eval = FALSE}
 perf |>
-  _[date >= "2022-01-10", .(
-    benchmark = last(benchmark) - first(benchmark),
-    portfolio = last(portfolio) - first(portfolio)
-  ), by = .(year(date))]
+  _[
+    date >= "2022-01-10",
+    .(
+      benchmark = last(benchmark) - first(benchmark),
+      portfolio = last(portfolio) - first(portfolio)
+    ),
+    by = .(year(date))
+  ]
 ```
 
 #### Analyse the portfolio exposure
