@@ -53,14 +53,49 @@ dt <- rbindlist(lapply(ticker, generate_prices, start_date, end_date))
 alloc <- data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
+  sector = c("Technology", "Technology", "Technology", "Consumer Cyclical"),
   country = c("USA", "USA", "USA", "USA")
 )
 dt <- dt[alloc, on = "ticker"]
 head(dt)
 ```
 
-TODO: holdings table current date: name, total value, abs. and relative change in value (from start), relative weight
-TODO: doughnut chart of portfolio composition
+#### Holdings
+
+```{r}
+holdings <- dt |>
+  _[,
+    .(start_price = first(price), current_price = last(price), weight = first(weight)),
+    by = ticker
+  ] |>
+  _[, let(
+    value = current_price * weight,
+    abs_change = current_price - start_price,
+    rel_change = current_price / start_price - 1
+  )] |>
+  _[, rel_weight := value / sum(value)]
+holdings
+```
+
+#### Portfolio Composition
+
+```{r}
+#| dpi = 300
+ggplot(holdings, aes(x = "", y = rel_weight, fill = ticker)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = scales::percent(rel_weight, accuracy = 0.1)),
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Portfolio Composition") +
+  theme_void() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.title = element_blank()
+  )
+```
 
 #### Calculate returns
 
@@ -213,6 +248,34 @@ perf |>
 #### Analyse the portfolio exposure
 
 ```{r}
+exposure <- dt |>
+  _[, .(value = sum(value)), by = .(date, sector)] |>
+  _[, weight := value / sum(value), by = date]
+head(exposure)
+```
+
+Exposure by sector over time:
+
+```{r}
+#| dpi = 300
+exposure |>
+  _[date >= add_months(end_date, -12L)] |>
+  ggplot(aes(x = date, y = weight, fill = sector)) +
+  geom_area() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Portfolio Exposure") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom"
+  )
 ```
 
 #### Calculate volatility
@@ -223,7 +286,8 @@ see for example
 
 
 ```{r}
-vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
+vola <- dt |>
+  _[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
     weekly_vola = daily_vola * sqrt(5),
     monthly_vola = daily_vola * sqrt(21),
@@ -281,6 +345,22 @@ head(drawdown)
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
 ```
 
-#### TODO:
+#### Tracking error
 
-- Tacking error
+Tracking error measures how closely a portfolio follows its benchmark:
+
+$$
+TE = \sqrt{\frac{1}{N-1} \sum_{i=1}^{N} (r_{p,i} - r_{b,i})^2}
+$$
+
+```{r}
+te <- dt |>
+  _[, .(port_ret = sum(wret)), by = date] |>
+  _[bmr[, .(date, bmr_ret = ret)], on = "date", nomatch = NULL] |>
+  _[, diff := port_ret - bmr_ret]
+
+te[, .(
+  daily_te = sd(diff),
+  annual_te = sd(diff) * sqrt(252)
+)]
+```

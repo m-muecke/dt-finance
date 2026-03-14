@@ -1,5 +1,6 @@
 # Finance with {data.table}
 
+
 Just a place to store some code snippets and notes on finance with using
 the latest `data.table` package.
 
@@ -50,24 +51,59 @@ dt <- rbindlist(lapply(ticker, generate_prices, start_date, end_date))
 alloc <- data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
+  sector = c("Technology", "Technology", "Technology", "Consumer Cyclical"),
   country = c("USA", "USA", "USA", "USA")
 )
 dt <- dt[alloc, on = "ticker"]
 head(dt)
 ```
 
-       ticker       date     price weight country
-       <char>     <Date>     <num>  <num>  <char>
-    1:   AAPL 2015-01-01  98.76269    0.4     USA
-    2:   AAPL 2015-01-02  99.09730    0.4     USA
-    3:   AAPL 2015-01-03 100.83187    0.4     USA
-    4:   AAPL 2015-01-04 102.29253    0.4     USA
-    5:   AAPL 2015-01-05 102.44505    0.4     USA
-    6:   AAPL 2015-01-06 101.12377    0.4     USA
+       ticker       date     price weight     sector country
+       <char>     <Date>     <num>  <num>     <char>  <char>
+    1:   AAPL 2015-01-01  98.76269    0.4 Technology     USA
+    2:   AAPL 2015-01-02  99.09730    0.4 Technology     USA
+    3:   AAPL 2015-01-03 100.83187    0.4 Technology     USA
+    4:   AAPL 2015-01-04 102.29253    0.4 Technology     USA
+    5:   AAPL 2015-01-05 102.44505    0.4 Technology     USA
+    6:   AAPL 2015-01-06 101.12377    0.4 Technology     USA
 
-TODO: holdings table current date: name, total value, abs. and relative
-change in value (from start), relative weight TODO: doughnut chart of
-portfolio composition
+#### Holdings
+
+``` r
+holdings <- dt |>
+  _[,
+    .(start_price = first(price), current_price = last(price), weight = first(weight)),
+    by = ticker
+  ] |>
+  _[, let(
+    value = current_price * weight,
+    abs_change = current_price - start_price,
+    rel_change = current_price / start_price - 1
+  )] |>
+  _[, rel_weight := value / sum(value)]
+holdings
+```
+
+#### Portfolio Composition
+
+``` r
+ggplot(holdings, aes(x = "", y = rel_weight, fill = ticker)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(
+    aes(label = scales::percent(rel_weight, accuracy = 0.1)),
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Portfolio Composition") +
+  theme_void() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.title = element_blank()
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-4-1.png)
 
 #### Calculate returns
 
@@ -85,22 +121,22 @@ dt <- dt |>
 head(dt)
 ```
 
-       ticker       date    price weight country          ret      log_ret
-       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
-    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.003382387
-    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.017352273
-    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.014382158
-    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.001489923
-    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.012981380
-    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.008538542
-                wret    value
-               <num>    <num>
-    1:  0.0013552454 39.63892
-    2:  0.0070014795 40.33275
-    3:  0.0057944315 40.91701
-    4:  0.0005964132 40.97802
-    5: -0.0051589943 40.44951
-    6:  0.0034300399 40.79637
+       ticker       date    price weight     sector country          ret
+       <char>     <Date>    <num>  <num>     <char>  <char>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4 Technology     USA  0.003388113
+    2:   AAPL 2015-01-03 100.8319    0.4 Technology     USA  0.017503699
+    3:   AAPL 2015-01-04 102.2925    0.4 Technology     USA  0.014486079
+    4:   AAPL 2015-01-05 102.4451    0.4 Technology     USA  0.001491033
+    5:   AAPL 2015-01-06 101.1238    0.4 Technology     USA -0.012897486
+    6:   AAPL 2015-01-07 101.9909    0.4 Technology     USA  0.008575100
+            log_ret          wret    value
+              <num>         <num>    <num>
+    1:  0.003382387  0.0013552454 39.63892
+    2:  0.017352273  0.0070014795 40.33275
+    3:  0.014382158  0.0057944315 40.91701
+    4:  0.001489923  0.0005964132 40.97802
+    5: -0.012981380 -0.0051589943 40.44951
+    6:  0.008538542  0.0034300399 40.79637
 
 ``` r
 dt |>
@@ -119,7 +155,7 @@ dt |>
   labs(title = "Portfolio Value")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-4-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-6-1.png)
 
 #### Calculate weekly, monthly and yearly returns
 
@@ -127,6 +163,18 @@ Return for each instrument:
 
 ``` r
 ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
+```
+
+    Warning in convertDate(as.IDate(x), "week"): The default behavior of week() is
+    changing. Previously ('legacy' mode), week numbers advanced every 7th day of
+    the year. The new 'sequential' mode ensures the first week always has 7 days.
+    For example, as.IDate('2023-01-07') returns week 2 in legacy mode but week 1 in
+    sequential mode (week 2 starts on '2023-01-08'). To adopt the new behavior now,
+    set options(datatable.week = 'sequential'). To keep the old results and silence
+    this warning, set options(datatable.week = 'legacy'). See
+    https://github.com/Rdatatable/data.table/issues/2611
+
+``` r
 ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
 ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
@@ -145,6 +193,18 @@ Return for the portfolio:
 
 ``` r
 port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
+```
+
+    Warning in convertDate(as.IDate(x), "week"): The default behavior of week() is
+    changing. Previously ('legacy' mode), week numbers advanced every 7th day of
+    the year. The new 'sequential' mode ensures the first week always has 7 days.
+    For example, as.IDate('2023-01-07') returns week 2 in legacy mode but week 1 in
+    sequential mode (week 2 starts on '2023-01-08'). To adopt the new behavior now,
+    set options(datatable.week = 'sequential'). To keep the old results and silence
+    this warning, set options(datatable.week = 'legacy'). See
+    https://github.com/Rdatatable/data.table/issues/2611
+
+``` r
 port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
 port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
 head(port_ret_year)
@@ -152,12 +212,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.11197525
-    2:  2016  0.23505665
-    3:  2017  0.09765000
-    4:  2018 -0.04271348
-    5:  2019 -0.14353103
-    6:  2020  0.21490787
+    1:  2015  0.15224301
+    2:  2016  0.12524341
+    3:  2017 -0.04403318
+    4:  2018  0.05218443
+    5:  2019 -0.05218269
+    6:  2020  0.36994989
 
 #### Compare performance with a benchmark
 
@@ -200,7 +260,7 @@ port |>
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-8-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-10-1.png)
 
 Or turn it into a wide-format and display the performance as an area
 chart:
@@ -242,7 +302,7 @@ perf |>
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-11-1.png)
 
 ``` r
 perf |>
@@ -258,6 +318,47 @@ perf |>
 
 #### Analyse the portfolio exposure
 
+``` r
+exposure <- dt |>
+  _[, .(value = sum(value)), by = .(date, sector)] |>
+  _[, weight := value / sum(value), by = date]
+head(exposure)
+```
+
+             date     sector    value    weight
+           <Date>     <char>    <num>     <num>
+    1: 2015-01-02 Technology 89.93340 0.9005067
+    2: 2015-01-03 Technology 90.59046 0.9002809
+    3: 2015-01-04 Technology 90.90440 0.9000025
+    4: 2015-01-05 Technology 90.60405 0.9002637
+    5: 2015-01-06 Technology 90.47123 0.9007652
+    6: 2015-01-07 Technology 90.75306 0.9004848
+
+Exposure by sector over time:
+
+``` r
+exposure |>
+  _[date >= add_months(end_date, -12L)] |>
+  ggplot(aes(x = date, y = weight, fill = sector)) +
+  geom_area() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Portfolio Exposure") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank(),
+    legend.title = element_blank(),
+    legend.position = "bottom"
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-14-1.png)
+
 #### Calculate volatility
 
 Note this is scaling volatility by $\sqrt{h}$, which has some
@@ -265,7 +366,8 @@ shortcomings, see for example [Diebold et.al.
 (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
 
 ``` r
-vola <- dt[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
+vola <- dt |>
+  _[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
     weekly_vola = daily_vola * sqrt(5),
     monthly_vola = daily_vola * sqrt(21),
@@ -301,7 +403,7 @@ port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-    [1] 0.00541362
+    [1] 0.005480002
 
 #### Drawdown
 
@@ -320,22 +422,22 @@ drawdown <- copy(dt) |>
 head(drawdown)
 ```
 
-       ticker       date    price weight country          ret      log_ret
-       <char>     <Date>    <num>  <num>  <char>        <num>        <num>
-    1:   AAPL 2015-01-02  99.0973    0.4     USA  0.003388113  0.003382387
-    2:   AAPL 2015-01-03 100.8319    0.4     USA  0.017503699  0.017352273
-    3:   AAPL 2015-01-04 102.2925    0.4     USA  0.014486079  0.014382158
-    4:   AAPL 2015-01-05 102.4451    0.4     USA  0.001491033  0.001489923
-    5:   AAPL 2015-01-06 101.1238    0.4     USA -0.012897486 -0.012981380
-    6:   AAPL 2015-01-07 101.9909    0.4     USA  0.008575100  0.008538542
-                wret    value     cum_ret     drawdown
-               <num>    <num>       <num>        <num>
-    1:  0.0013552454 39.63892 0.003388113  0.000000000
-    2:  0.0070014795 40.33275 0.020951117  0.000000000
-    3:  0.0057944315 40.91701 0.035740695  0.000000000
-    4:  0.0005964132 40.97802 0.037285018  0.000000000
-    5: -0.0051589943 40.44951 0.023906650 -0.013378369
-    6:  0.0034300399 40.79637 0.032686751 -0.004598267
+       ticker       date    price weight     sector country          ret
+       <char>     <Date>    <num>  <num>     <char>  <char>        <num>
+    1:   AAPL 2015-01-02  99.0973    0.4 Technology     USA  0.003388113
+    2:   AAPL 2015-01-03 100.8319    0.4 Technology     USA  0.017503699
+    3:   AAPL 2015-01-04 102.2925    0.4 Technology     USA  0.014486079
+    4:   AAPL 2015-01-05 102.4451    0.4 Technology     USA  0.001491033
+    5:   AAPL 2015-01-06 101.1238    0.4 Technology     USA -0.012897486
+    6:   AAPL 2015-01-07 101.9909    0.4 Technology     USA  0.008575100
+            log_ret          wret    value     cum_ret     drawdown
+              <num>         <num>    <num>       <num>        <num>
+    1:  0.003382387  0.0013552454 39.63892 0.003388113  0.000000000
+    2:  0.017352273  0.0070014795 40.33275 0.020951117  0.000000000
+    3:  0.014382158  0.0057944315 40.91701 0.035740695  0.000000000
+    4:  0.001489923  0.0005964132 40.97802 0.037285018  0.000000000
+    5: -0.012981380 -0.0051589943 40.44951 0.023906650 -0.013378369
+    6:  0.008538542  0.0034300399 40.79637 0.032686751 -0.004598267
 
 Portfolio drawdown:
 
@@ -347,14 +449,14 @@ drawdown <- dt |>
 head(drawdown)
 ```
 
-             date          wret      cum_ret      drawdown
-           <Date>         <num>        <num>         <num>
-    1: 2015-01-02 -0.0028002676 -0.002800268  0.0000000000
-    2: 2015-01-03  0.0094504585  0.006623727  0.0000000000
-    3: 2015-01-04 -0.0028169791  0.003788089 -0.0028356380
-    4: 2015-01-05  0.0023533344  0.006150338 -0.0004733889
-    5: 2015-01-06 -0.0054367017  0.000680199 -0.0059435281
-    6: 2015-01-07  0.0007667473  0.001447468 -0.0051762593
+             date         wret     cum_ret     drawdown
+           <Date>        <num>       <num>        <num>
+    1: 2015-01-02  0.004329323 0.004329323  0.000000000
+    2: 2015-01-03  0.007637011 0.011999397  0.000000000
+    3: 2015-01-04  0.003732564 0.015776749  0.000000000
+    4: 2015-01-05 -0.003631594 0.012087860 -0.003688889
+    5: 2015-01-06 -0.001849199 0.010216308 -0.005560441
+    6: 2015-01-07  0.003303657 0.013553717 -0.002223032
 
 ``` r
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
@@ -362,8 +464,28 @@ drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawd
 
        min_drawdown avg_drawdown
               <num>        <num>
-    1:   -0.4676764   -0.1229879
+    1:   -0.2950733  -0.08016726
 
-#### TODO:
+#### Tracking error
 
-- Tacking error
+Tracking error measures how closely a portfolio follows its benchmark:
+
+$$
+TE = \sqrt{\frac{1}{N-1} \sum_{i=1}^{N} (r_{p,i} - r_{b,i})^2}
+$$
+
+``` r
+te <- dt |>
+  _[, .(port_ret = sum(wret)), by = date] |>
+  _[bmr[, .(date, bmr_ret = ret)], on = "date", nomatch = NULL] |>
+  _[, diff := port_ret - bmr_ret]
+
+te[, .(
+  daily_te = sd(diff),
+  annual_te = sd(diff) * sqrt(252)
+)]
+```
+
+          daily_te annual_te
+             <num>     <num>
+    1: 0.009541491 0.1514665
