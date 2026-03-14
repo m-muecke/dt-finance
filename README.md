@@ -385,6 +385,23 @@ head(vola)
     5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
     6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
 
+#### Sharpe ratio
+
+The Sharpe ratio measures risk-adjusted return:
+
+$$
+S = \frac{R_p - R_f}{\sigma_p}
+$$
+
+``` r
+rf <- 0.04 / 252 # daily risk-free rate (assuming 4% annual)
+port_daily <- dt[, .(ret = sum(wret)), by = date]
+sharpe <- port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
+sharpe
+```
+
+    [1] 0.5689821
+
 #### Portfolio risk
 
 Portfolio risk is defined as:
