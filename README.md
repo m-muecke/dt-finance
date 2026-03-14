@@ -10,6 +10,7 @@ Load the required libraries:
 library(clock)
 library(data.table)
 library(ggplot2)
+options(datatable.week = "sequential")
 ```
 
 ## Portfolio Management
@@ -163,18 +164,6 @@ Return for each instrument:
 
 ``` r
 ret_week = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
-```
-
-    Warning in convertDate(as.IDate(x), "week"): The default behavior of week() is
-    changing. Previously ('legacy' mode), week numbers advanced every 7th day of
-    the year. The new 'sequential' mode ensures the first week always has 7 days.
-    For example, as.IDate('2023-01-07') returns week 2 in legacy mode but week 1 in
-    sequential mode (week 2 starts on '2023-01-08'). To adopt the new behavior now,
-    set options(datatable.week = 'sequential'). To keep the old results and silence
-    this warning, set options(datatable.week = 'legacy'). See
-    https://github.com/Rdatatable/data.table/issues/2611
-
-``` r
 ret_month = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
 ret_year = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
@@ -193,18 +182,6 @@ Return for the portfolio:
 
 ``` r
 port_ret_week = dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
-```
-
-    Warning in convertDate(as.IDate(x), "week"): The default behavior of week() is
-    changing. Previously ('legacy' mode), week numbers advanced every 7th day of
-    the year. The new 'sequential' mode ensures the first week always has 7 days.
-    For example, as.IDate('2023-01-07') returns week 2 in legacy mode but week 1 in
-    sequential mode (week 2 starts on '2023-01-08'). To adopt the new behavior now,
-    set options(datatable.week = 'sequential'). To keep the old results and silence
-    this warning, set options(datatable.week = 'legacy'). See
-    https://github.com/Rdatatable/data.table/issues/2611
-
-``` r
 port_ret_month = dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
 port_ret_year = dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
 head(port_ret_year)

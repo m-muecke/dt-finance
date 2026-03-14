@@ -12,6 +12,7 @@ Load the required libraries:
 library(clock)
 library(data.table)
 library(ggplot2)
+options(datatable.week = "sequential")
 ```
 
 ## Portfolio Management
