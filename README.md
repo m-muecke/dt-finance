@@ -215,7 +215,7 @@ ggplot(
     mid = "white",
     high = "darkblue",
     midpoint = 0,
-    labels = scales::percent
+    labels = scales::label_percent()
   ) +
   scale_x_discrete(labels = month.abb) +
   labs(title = "Monthly Portfolio Returns") +
@@ -267,7 +267,7 @@ port |>
     legend.position = "bottom"
   ) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 2)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 2)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
@@ -298,7 +298,7 @@ perf |>
   geom_line(aes(y = benchmark, color = "Benchmark")) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
   scale_fill_manual(values = c("TRUE" = "#00A651", "FALSE" = "#FF0000")) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 2L)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 2L)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark") +
   theme_minimal() +
   theme(
@@ -352,7 +352,7 @@ exposure |>
   _[date >= add_months(end_date, -12L)] |>
   ggplot(aes(x = date, y = weight, fill = sector)) +
   geom_area() +
-  scale_y_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::label_percent()) +
   scale_fill_brewer(palette = "Set2") +
   labs(title = "Portfolio Exposure") +
   theme_minimal() +
@@ -407,7 +407,7 @@ port_daily |>
   na.omit("roll_vola") |>
   ggplot(aes(x = date, y = roll_vola)) +
   geom_line() +
-  scale_y_continuous(labels = scales::percent_format()) +
+  scale_y_continuous(labels = scales::label_percent()) +
   labs(title = "Rolling Annualized Volatility (63-day)") +
   theme_minimal() +
   theme(
