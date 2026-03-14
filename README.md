@@ -562,6 +562,17 @@ drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawd
               <num>        <num>
     1:   -0.2950733  -0.08016726
 
+#### Calmar ratio
+
+Annualized return divided by maximum drawdown:
+
+``` r
+calmar = port_daily[, (mean(ret) * 252) / abs(drawdown[, min(drawdown)])]
+calmar
+```
+
+    [1] 0.3015244
+
 #### Tracking error
 
 Tracking error measures how closely a portfolio follows its benchmark:
@@ -585,6 +596,16 @@ te[, .(
           daily_te annual_te
              <num>     <num>
     1: 0.009541491 0.1514665
+
+#### Information ratio
+
+Excess return per unit of tracking error:
+
+``` r
+te[, mean(diff) / sd(diff) * sqrt(252)]
+```
+
+    [1] 0.4945506
 
 #### Beta and Alpha
 
@@ -638,4 +659,4 @@ ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-29-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-31-1.png)

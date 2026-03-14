@@ -451,6 +451,15 @@ head(drawdown)
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
 ```
 
+#### Calmar ratio
+
+Annualized return divided by maximum drawdown:
+
+```{r}
+calmar = port_daily[, (mean(ret) * 252) / abs(drawdown[, min(drawdown)])]
+calmar
+```
+
 #### Tracking error
 
 Tracking error measures how closely a portfolio follows its benchmark:
@@ -469,6 +478,14 @@ te[, .(
   daily_te = sd(diff),
   annual_te = sd(diff) * sqrt(252)
 )]
+```
+
+#### Information ratio
+
+Excess return per unit of tracking error:
+
+```{r}
+te[, mean(diff) / sd(diff) * sqrt(252)]
 ```
 
 #### Beta and Alpha
