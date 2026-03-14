@@ -432,6 +432,21 @@ port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
               <num>       <num>
     1: -0.008465872 -0.01206041
 
+#### Expected Shortfall (CVaR)
+
+Average loss beyond VaR:
+
+``` r
+port_daily[, .(
+  CVaR_95 = mean(ret[ret <= quantile(ret, 0.05)]),
+  CVaR_99 = mean(ret[ret <= quantile(ret, 0.01)])
+)]
+```
+
+           CVaR_95     CVaR_99
+             <num>       <num>
+    1: -0.01070236 -0.01343695
+
 #### Portfolio risk
 
 Portfolio risk is defined as:

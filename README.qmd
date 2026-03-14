@@ -358,6 +358,17 @@ Historical VaR at the 95% and 99% confidence levels:
 port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
 ```
 
+#### Expected Shortfall (CVaR)
+
+Average loss beyond VaR:
+
+```{r}
+port_daily[, .(
+  CVaR_95 = mean(ret[ret <= quantile(ret, 0.05)]),
+  CVaR_99 = mean(ret[ret <= quantile(ret, 0.01)])
+)]
+```
+
 #### Portfolio risk
 
 Portfolio risk is defined as:
