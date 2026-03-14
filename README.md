@@ -454,6 +454,30 @@ sortino
 
     [1] 1.001399
 
+#### Rolling Sharpe
+
+``` r
+port_daily[, roll_sharpe := (frollmean(ret, window) - rf) / frollsd(ret, window) * sqrt(252)]
+
+port_daily |>
+  na.omit("roll_sharpe") |>
+  ggplot(aes(x = date, y = roll_sharpe)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linewidth = 0.3) +
+  labs(title = "Rolling Sharpe Ratio (63-day)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank()
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-20-1.png)
+
 #### Value at Risk
 
 Historical VaR at the 95% and 99% confidence levels:
@@ -659,4 +683,4 @@ ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-31-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-32-1.png)
