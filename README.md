@@ -574,11 +574,11 @@ data.table(alpha = coefs[1L] * 252, beta = coefs[2L])
 #### Correlation matrix
 
 ``` r
-dt |>
+cor_mat = dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
   _[, date := NULL] |>
-  cor(use = "pairwise.complete.obs") |>
-  round(3)
+  cor(use = "pairwise.complete.obs")
+round(cor_mat, 3)
 ```
 
             AAPL   AMZN  GOOGL   MSFT
@@ -586,3 +586,22 @@ dt |>
     AMZN   0.009  1.000  0.017 -0.014
     GOOGL -0.008  0.017  1.000 -0.024
     MSFT   0.005 -0.014 -0.024  1.000
+
+``` r
+cor_dt = as.data.table(cor_mat, keep.rownames = "ticker1") |>
+  melt(id.vars = "ticker1", variable.name = "ticker2", value.name = "cor")
+
+ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
+  geom_tile() +
+  geom_text(aes(label = round(cor, 2)), size = 3) +
+  scale_fill_gradient2(low = "#FF0000", mid = "white", high = "darkblue", midpoint = 0) +
+  labs(title = "Correlation Matrix") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-28-1.png)
