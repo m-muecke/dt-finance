@@ -2,7 +2,7 @@
 
 
 Just a place to store some code snippets and notes on finance with using
-the latest `data.table` package.
+the latest `data.table` package. Requires `data.table >= 1.18.0`.
 
 Load the required libraries:
 
@@ -385,6 +385,32 @@ head(vola)
     5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
     6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
 
+#### Rolling volatility
+
+``` r
+window = 63L # ~3 months
+port_daily = dt[, .(ret = sum(wret)), by = date]
+port_daily[, roll_vola := frollsd(ret, window) * sqrt(252)]
+
+port_daily |>
+  na.omit("roll_vola") |>
+  ggplot(aes(x = date, y = roll_vola)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(title = "Rolling Annualized Volatility (63-day)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank()
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-16-1.png)
+
 #### Sharpe ratio
 
 The Sharpe ratio measures risk-adjusted return:
@@ -401,6 +427,33 @@ sharpe
 ```
 
     [1] 0.5689821
+
+#### Sortino ratio
+
+The Sortino ratio replaces total volatility with downside deviation:
+
+$$
+So = \frac{R_p - R_f}{\sigma_d}
+$$
+
+``` r
+sortino = port_daily[, (mean(ret) - rf) / sd(pmin(ret - rf, 0)) * sqrt(252)]
+sortino
+```
+
+    [1] 1.001399
+
+#### Value at Risk
+
+Historical VaR at the 95% and 99% confidence levels:
+
+``` r
+port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
+```
+
+             VaR_95      VaR_99
+              <num>       <num>
+    1: -0.008465872 -0.01206041
 
 #### Portfolio risk
 

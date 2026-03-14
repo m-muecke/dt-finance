@@ -4,7 +4,7 @@ format: gfm
 ---
 
 Just a place to store some code snippets and notes on finance with
-using the latest `data.table` package.
+using the latest `data.table` package. Requires `data.table >= 1.18.0`.
 
 Load the required libraries:
 
@@ -296,6 +296,31 @@ vola = dt |>
 head(vola)
 ```
 
+#### Rolling volatility
+
+```{r}
+#| dpi = 300
+window = 63L # ~3 months
+port_daily = dt[, .(ret = sum(wret)), by = date]
+port_daily[, roll_vola := frollsd(ret, window) * sqrt(252)]
+
+port_daily |>
+  na.omit("roll_vola") |>
+  ggplot(aes(x = date, y = roll_vola)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(title = "Rolling Annualized Volatility (63-day)") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank()
+  )
+```
+
 #### Sharpe ratio
 
 The Sharpe ratio measures risk-adjusted return:
@@ -309,6 +334,27 @@ rf = 0.04 / 252 # daily risk-free rate (assuming 4% annual)
 port_daily = dt[, .(ret = sum(wret)), by = date]
 sharpe = port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
 sharpe
+```
+
+#### Sortino ratio
+
+The Sortino ratio replaces total volatility with downside deviation:
+
+$$
+So = \frac{R_p - R_f}{\sigma_d}
+$$
+
+```{r}
+sortino = port_daily[, (mean(ret) - rf) / sd(pmin(ret - rf, 0)) * sqrt(252)]
+sortino
+```
+
+#### Value at Risk
+
+Historical VaR at the 95% and 99% confidence levels:
+
+```{r}
+port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
 ```
 
 #### Portfolio risk
