@@ -21,10 +21,10 @@ Generate some fake stock prices for a few tickers.
 ``` r
 set.seed(1994)
 
-generate_prices <- function(ticker, start_date, end_date) {
-  dates <- seq(as.Date(start_date), as.Date(end_date), by = "1 day")
-  n <- length(dates)
-  prices <- cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
+generate_prices = function(ticker, start_date, end_date) {
+  dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
+  n = length(dates)
+  prices = cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
   data.table(
     ticker = ticker,
     date = dates,
@@ -32,10 +32,10 @@ generate_prices <- function(ticker, start_date, end_date) {
   )
 }
 
-generate_benchmark <- function(start_date, end_date) {
-  dates <- seq(as.Date(start_date), as.Date(end_date), by = "1 day")
-  n <- length(dates)
-  prices <- cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
+generate_benchmark = function(start_date, end_date) {
+  dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
+  n = length(dates)
+  prices = cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
   data.table(
     ticker = "SP500",
     date = dates,
@@ -43,18 +43,18 @@ generate_benchmark <- function(start_date, end_date) {
   )
 }
 
-ticker <- c("AAPL", "GOOGL", "MSFT", "AMZN")
-start_date <- "2015-01-01"
-end_date <- Sys.Date()
+ticker = c("AAPL", "GOOGL", "MSFT", "AMZN")
+start_date = "2015-01-01"
+end_date = Sys.Date()
 
-dt <- rbindlist(lapply(ticker, generate_prices, start_date, end_date))
-alloc <- data.table(
+dt = rbindlist(lapply(ticker, generate_prices, start_date, end_date))
+alloc = data.table(
   ticker = ticker,
   weight = c(0.4, 0.3, 0.2, 0.1),
   sector = c("Technology", "Technology", "Technology", "Consumer Cyclical"),
   country = c("USA", "USA", "USA", "USA")
 )
-dt <- dt[alloc, on = "ticker"]
+dt = dt[alloc, on = "ticker"]
 head(dt)
 ```
 
@@ -70,7 +70,7 @@ head(dt)
 #### Holdings
 
 ``` r
-holdings <- dt |>
+holdings = dt |>
   _[,
     .(start_price = first(price), current_price = last(price), weight = first(weight)),
     by = ticker
@@ -108,12 +108,12 @@ ggplot(holdings, aes(x = "", y = rel_weight, fill = ticker)) +
 #### Calculate returns
 
 ``` r
-logret <- function(x) {
-  x <- log(x)
+logret = function(x) {
+  x = log(x)
   x - shift(x)
 }
 
-dt <- dt |>
+dt = dt |>
   setorder(ticker, date) |>
   _[, let(ret = price / shift(price) - 1, log_ret = logret(price)), by = ticker] |>
   na.omit("ret") |>
@@ -162,7 +162,7 @@ dt |>
 Return for each instrument:
 
 ``` r
-ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
+ret_week = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
 ```
 
     Warning in convertDate(as.IDate(x), "week"): The default behavior of week() is
@@ -175,8 +175,8 @@ ret_week <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(dat
     https://github.com/Rdatatable/data.table/issues/2611
 
 ``` r
-ret_month <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
-ret_year <- dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
+ret_month = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
+ret_year = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
 ```
 
@@ -192,7 +192,7 @@ head(ret_year)
 Return for the portfolio:
 
 ``` r
-port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
+port_ret_week = dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
 ```
 
     Warning in convertDate(as.IDate(x), "week"): The default behavior of week() is
@@ -205,8 +205,8 @@ port_ret_week <- dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date)
     https://github.com/Rdatatable/data.table/issues/2611
 
 ``` r
-port_ret_month <- dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
-port_ret_year <- dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
+port_ret_month = dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
+port_ret_year = dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
 head(port_ret_year)
 ```
 
@@ -224,12 +224,12 @@ head(port_ret_year)
 Calculat the benchmark return:
 
 ``` r
-bmr <- generate_benchmark(start_date, end_date) |>
+bmr = generate_benchmark(start_date, end_date) |>
   setorder(date) |>
   _[, ret := price / shift(price) - 1] |>
   na.omit("ret")
 
-port <- dt |>
+port = dt |>
   _[, .(ret = prod(1 + wret) - 1, ticker = "Portfolio"), by = date] |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
@@ -266,7 +266,7 @@ Or turn it into a wide-format and display the performance as an area
 chart:
 
 ``` r
-perf <- port |>
+perf = port |>
   dcast(date ~ ticker, value.var = "cum_ret") |>
   setnames(tolower) |>
   _[, diff := portfolio - benchmark]
@@ -319,7 +319,7 @@ perf |>
 #### Analyse the portfolio exposure
 
 ``` r
-exposure <- dt |>
+exposure = dt |>
   _[, .(value = sum(value)), by = .(date, sector)] |>
   _[, weight := value / sum(value), by = date]
 head(exposure)
@@ -366,7 +366,7 @@ shortcomings, see for example [Diebold et.al.
 (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
 
 ``` r
-vola <- dt |>
+vola = dt |>
   _[, .(daily_vola = sd(log_ret)), by = .(ticker, year(date))] |>
   _[, let(
     weekly_vola = daily_vola * sqrt(5),
@@ -394,9 +394,9 @@ S = \frac{R_p - R_f}{\sigma_p}
 $$
 
 ``` r
-rf <- 0.04 / 252 # daily risk-free rate (assuming 4% annual)
-port_daily <- dt[, .(ret = sum(wret)), by = date]
-sharpe <- port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
+rf = 0.04 / 252 # daily risk-free rate (assuming 4% annual)
+port_daily = dt[, .(ret = sum(wret)), by = date]
+sharpe = port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
 sharpe
 ```
 
@@ -411,12 +411,12 @@ $$
 $$
 
 ``` r
-wgt <- alloc$weight
-cov_mat <- dt |>
+wgt = alloc$weight
+cov_mat = dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
   _[, date := NULL] |>
   cov(use = "pairwise.complete.obs")
-port_risk <- as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
+port_risk = as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
@@ -433,7 +433,7 @@ $$
 Instrument drawdown:
 
 ``` r
-drawdown <- copy(dt) |>
+drawdown = copy(dt) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
   _[, drawdown := (cum_ret - cummax(cum_ret)), by = ticker]
 head(drawdown)
@@ -459,7 +459,7 @@ head(drawdown)
 Portfolio drawdown:
 
 ``` r
-drawdown <- dt |>
+drawdown = dt |>
   _[, .(wret = sum(wret)), by = date] |>
   _[, cum_ret := cumprod(1 + wret) - 1] |>
   _[, drawdown := (cum_ret - cummax(cum_ret))]
@@ -492,7 +492,7 @@ TE = \sqrt{\frac{1}{N-1} \sum_{i=1}^{N} (r_{p,i} - r_{b,i})^2}
 $$
 
 ``` r
-te <- dt |>
+te = dt |>
   _[, .(port_ret = sum(wret)), by = date] |>
   _[bmr[, .(date, bmr_ret = ret)], on = "date", nomatch = NULL] |>
   _[, diff := port_ret - bmr_ret]
@@ -506,3 +506,38 @@ te[, .(
           daily_te annual_te
              <num>     <num>
     1: 0.009541491 0.1514665
+
+#### Beta and Alpha
+
+Beta measures the portfolio’s sensitivity to the benchmark, Alpha the
+excess return:
+
+$$
+r_p = \alpha + \beta \cdot r_b + \epsilon
+$$
+
+``` r
+fit = te[, lm(port_ret ~ bmr_ret)]
+coefs = coef(fit)
+data.table(alpha = coefs[1L] * 252, beta = coefs[2L])
+```
+
+            alpha        beta
+            <num>       <num>
+    1: 0.08893703 0.002473253
+
+#### Correlation matrix
+
+``` r
+dt |>
+  dcast(date ~ ticker, value.var = "log_ret") |>
+  _[, date := NULL] |>
+  cor(use = "pairwise.complete.obs") |>
+  round(3)
+```
+
+            AAPL   AMZN  GOOGL   MSFT
+    AAPL   1.000  0.009 -0.008  0.005
+    AMZN   0.009  1.000  0.017 -0.014
+    GOOGL -0.008  0.017  1.000 -0.024
+    MSFT   0.005 -0.014 -0.024  1.000
