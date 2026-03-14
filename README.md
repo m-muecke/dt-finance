@@ -196,6 +196,28 @@ head(port_ret_year)
     5:  2019 -0.05218269
     6:  2020  0.36994989
 
+#### Monthly return heatmap
+
+``` r
+port_ret_month_dt = dt[, .(ret = prod(1 + wret) - 1), by = .(year = year(date), month = month(date))]
+
+ggplot(port_ret_month_dt, aes(x = factor(month), y = factor(year, levels = rev(unique(year))), fill = ret)) +
+  geom_tile() +
+  geom_text(aes(label = scales::percent(ret, accuracy = 0.1)), size = 2.5) +
+  scale_fill_gradient2(low = "#FF0000", mid = "white", high = "darkblue", midpoint = 0, labels = scales::percent) +
+  scale_x_discrete(labels = month.abb) +
+  labs(title = "Monthly Portfolio Returns") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.title = element_blank()
+  )
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
+
 #### Compare performance with a benchmark
 
 Calculat the benchmark return:
@@ -237,7 +259,7 @@ port |>
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-10-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-11-1.png)
 
 Or turn it into a wide-format and display the performance as an area
 chart:
@@ -279,7 +301,7 @@ perf |>
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-11-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-12-1.png)
 
 ``` r
 perf |>
@@ -334,7 +356,7 @@ exposure |>
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-14-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-15-1.png)
 
 #### Calculate volatility
 
@@ -386,7 +408,7 @@ port_daily |>
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-16-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-17-1.png)
 
 #### Sharpe ratio
 
@@ -604,4 +626,4 @@ ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-28-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-29-1.png)
