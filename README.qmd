@@ -13,7 +13,6 @@ Load the required libraries:
 library(clock)
 library(data.table)
 library(ggplot2)
-options(datatable.week = "sequential")
 ```
 
 ## Portfolio Management
@@ -130,7 +129,7 @@ dt |>
 Return for each instrument:
 
 ```{r}
-ret_week = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date), week(date))]
+ret_week = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, isoyear(date), isoweek(date))]
 ret_month = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, yearmon(date))]
 ret_year = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
@@ -140,7 +139,7 @@ Return for the portfolio:
 
 ```{r}
 port_daily = dt[, .(ret = sum(wret)), by = date]
-port_ret_week = port_daily[, .(ret = prod(1 + ret) - 1), by = .(year(date), week(date))]
+port_ret_week = port_daily[, .(ret = prod(1 + ret) - 1), by = .(isoyear(date), isoweek(date))]
 port_ret_month = port_daily[, .(ret = prod(1 + ret) - 1), by = .(yearmon(date))]
 port_ret_year = port_daily[, .(ret = prod(1 + ret) - 1), by = year(date)]
 head(port_ret_year)
@@ -157,7 +156,7 @@ port_ret_month_dt = port_daily[,
 
 ggplot(
   port_ret_month_dt,
-  aes(x = factor(month), y = factor(year, levels = rev(unique(year))), fill = ret)
+  aes(x = fctr(month), y = fctr(year, rev = TRUE), fill = ret)
 ) +
   geom_tile() +
   geom_text(aes(label = scales::percent(ret, accuracy = 0.1)), size = 2.5) +
