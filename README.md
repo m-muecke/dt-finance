@@ -369,7 +369,6 @@ head(vola)
 
 ``` r
 window = 63L # ~3 months
-port_daily = dt[, .(ret = sum(wret)), by = date]
 port_daily[, roll_vola := frollsd(ret, window) * sqrt(252)]
 
 port_daily |>
@@ -391,7 +390,6 @@ $$S = \frac{R_p - R_f}{\sigma_p}$$
 
 ``` r
 rf = 0.04 / 252 # daily risk-free rate (assuming 4% annual)
-port_daily = dt[, .(ret = sum(wret)), by = date]
 sharpe = port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
 sharpe
 ```
