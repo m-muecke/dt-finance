@@ -10,6 +10,17 @@ Load the required libraries:
 library(clock)
 library(data.table)
 library(ggplot2)
+
+theme_finance = theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text = element_text(color = "black"),
+    axis.title = element_blank(),
+    legend.title = element_blank()
+  )
 ```
 
 ## Portfolio Management
@@ -148,15 +159,7 @@ dt |>
   _[date >= add_months(end_date, -12L), .(value = sum(value)), by = date] |>
   ggplot(aes(x = date, y = value)) +
   geom_line() +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.text = element_text(color = "black"),
-    axis.title = element_blank()
-  ) +
+  theme_finance +
   labs(title = "Portfolio Value")
 ```
 
@@ -250,7 +253,7 @@ port = dt |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
-  _[, ticker := replace(ticker, ticker != "Portfolio", "Benchmark")]
+  _[, ticker := fifelse(ticker == "Portfolio", ticker, "Benchmark")]
 ```
 
 Compare the portfolio with the benchmark performance:
@@ -260,17 +263,8 @@ port |>
   _[date > "2021-01-01"] |>
   ggplot(aes(x = date, y = cum_ret, color = ticker)) +
   geom_line() +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.text = element_text(color = "black"),
-    axis.title = element_blank(),
-    legend.title = element_blank(),
-    legend.position = "bottom"
-  ) +
+  theme_finance +
+  theme(legend.position = "bottom") +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
   scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
@@ -305,32 +299,11 @@ perf |>
   scale_fill_manual(values = c("TRUE" = "#00A651", "FALSE" = "#FF0000")) +
   scale_y_continuous(labels = scales::label_percent(accuracy = 1L)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.text = element_text(color = "black"),
-    axis.title = element_blank(),
-    legend.title = element_blank(),
-    legend.position = "bottom"
-  )
+  theme_finance +
+  theme(legend.position = "bottom")
 ```
 
 ![](README_files/figure-commonmark/unnamed-chunk-12-1.png)
-
-``` r
-perf |>
-  _[
-    date >= "2022-01-10",
-    .(
-      benchmark = last(benchmark) - first(benchmark),
-      portfolio = last(portfolio) - first(portfolio)
-    ),
-    by = .(year(date))
-  ]
-```
 
 #### Analyse the portfolio exposure
 
@@ -360,20 +333,11 @@ exposure |>
   scale_y_continuous(labels = scales::label_percent()) +
   scale_fill_brewer(palette = "Set2") +
   labs(title = "Portfolio Exposure") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.text = element_text(color = "black"),
-    axis.title = element_blank(),
-    legend.title = element_blank(),
-    legend.position = "bottom"
-  )
+  theme_finance +
+  theme(legend.position = "bottom")
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-15-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-14-1.png)
 
 #### Calculate volatility
 
@@ -414,18 +378,10 @@ port_daily |>
   geom_line() +
   scale_y_continuous(labels = scales::label_percent()) +
   labs(title = "Rolling Annualized Volatility (63-day)") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.text = element_text(color = "black"),
-    axis.title = element_blank()
-  )
+  theme_finance
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-17-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-16-1.png)
 
 #### Sharpe ratio
 
@@ -466,18 +422,10 @@ port_daily |>
   geom_line() +
   geom_hline(yintercept = 0, linewidth = 0.3) +
   labs(title = "Rolling Sharpe Ratio (63-day)") +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid.major.y = element_line(color = "black", linewidth = 0.2),
-    panel.grid.major.x = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.text = element_text(color = "black"),
-    axis.title = element_blank()
-  )
+  theme_finance
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-20-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-19-1.png)
 
 #### Value at Risk
 
@@ -676,4 +624,4 @@ ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-32-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-31-1.png)
