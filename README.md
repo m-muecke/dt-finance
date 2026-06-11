@@ -26,22 +26,14 @@ generate_prices = function(ticker, start_date, end_date) {
   dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n = length(dates)
   prices = cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
-  data.table(
-    ticker = ticker,
-    date = dates,
-    price = prices
-  )
+  data.table(ticker = ticker, date = dates, price = prices)
 }
 
 generate_benchmark = function(start_date, end_date) {
   dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n = length(dates)
   prices = cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
-  data.table(
-    ticker = "SP500",
-    date = dates,
-    price = prices
-  )
+  data.table(ticker = "SP500", date = dates, price = prices)
 }
 
 ticker = c("AAPL", "GOOGL", "MSFT", "AMZN")
@@ -82,8 +74,21 @@ holdings = dt |>
     rel_change = current_price / start_price - 1
   )] |>
   _[, rel_weight := value / sum(value)]
-holdings
+head(holdings)
 ```
+
+       ticker start_price current_price weight     value abs_change rel_change
+       <char>       <num>         <num>  <num>     <num>      <num>      <num>
+    1:   AAPL    98.76269      381.5496    0.4 152.61986  282.78696  2.8632976
+    2:  GOOGL   100.17023      156.4031    0.3  46.92093   56.23287  0.5613731
+    3:   MSFT    99.31167      794.6858    0.2 158.93715  695.37410  7.0019374
+    4:   AMZN   101.53155      688.9587    0.1  68.89587  587.42719  5.7856617
+       rel_weight
+            <num>
+    1:  0.3571109
+    2:  0.1097890
+    3:  0.3718926
+    4:  0.1612075
 
 #### Portfolio Composition
 
@@ -181,26 +186,27 @@ head(ret_year)
 Return for the portfolio:
 
 ``` r
-port_ret_week = dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
-port_ret_month = dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
-port_ret_year = dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
+port_daily = dt[, .(ret = sum(wret)), by = date]
+port_ret_week = port_daily[, .(ret = prod(1 + ret) - 1), by = .(year(date), week(date))]
+port_ret_month = port_daily[, .(ret = prod(1 + ret) - 1), by = .(yearmon(date))]
+port_ret_year = port_daily[, .(ret = prod(1 + ret) - 1), by = year(date)]
 head(port_ret_year)
 ```
 
         year         ret
        <int>       <num>
-    1:  2015  0.15224301
-    2:  2016  0.12524341
-    3:  2017 -0.04403318
-    4:  2018  0.05218443
-    5:  2019 -0.05218269
-    6:  2020  0.36994989
+    1:  2015  0.17945335
+    2:  2016  0.09837058
+    3:  2017 -0.04163755
+    4:  2018  0.10244069
+    5:  2019 -0.09462773
+    6:  2020  0.38000888
 
 #### Monthly return heatmap
 
 ``` r
-port_ret_month_dt = dt[,
-  .(ret = prod(1 + wret) - 1),
+port_ret_month_dt = port_daily[,
+  .(ret = prod(1 + ret) - 1),
   by = .(year = year(date), month = month(date))
 ]
 
@@ -232,7 +238,7 @@ ggplot(
 
 #### Compare performance with a benchmark
 
-Calculat the benchmark return:
+Calculate the benchmark return:
 
 ``` r
 bmr = generate_benchmark(start_date, end_date) |>
@@ -241,7 +247,7 @@ bmr = generate_benchmark(start_date, end_date) |>
   na.omit("ret")
 
 port = dt |>
-  _[, .(ret = prod(1 + wret) - 1, ticker = "Portfolio"), by = date] |>
+  _[, .(ret = sum(wret), ticker = "Portfolio"), by = date] |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
@@ -267,7 +273,7 @@ port |>
     legend.position = "bottom"
   ) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
-  scale_y_continuous(labels = scales::label_percent(accuracy = 2)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
@@ -298,7 +304,7 @@ perf |>
   geom_line(aes(y = benchmark, color = "Benchmark")) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
   scale_fill_manual(values = c("TRUE" = "#00A651", "FALSE" = "#FF0000")) +
-  scale_y_continuous(labels = scales::label_percent(accuracy = 2L)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1L)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark") +
   theme_minimal() +
   theme(
@@ -338,12 +344,12 @@ head(exposure)
 
              date     sector    value    weight
            <Date>     <char>    <num>     <num>
-    1: 2015-01-02 Technology 89.93340 0.9005067
-    2: 2015-01-03 Technology 90.59046 0.9002809
-    3: 2015-01-04 Technology 90.90440 0.9000025
-    4: 2015-01-05 Technology 90.60405 0.9002637
-    5: 2015-01-06 Technology 90.47123 0.9007652
-    6: 2015-01-07 Technology 90.75306 0.9004848
+    1: 2015-01-02 Technology 89.57241 0.8986877
+    2: 2015-01-03 Technology 89.91333 0.8985023
+    3: 2015-01-04 Technology 90.88885 0.8980845
+    4: 2015-01-05 Technology 90.77618 0.8987805
+    5: 2015-01-06 Technology 90.40577 0.8980858
+    6: 2015-01-07 Technology 90.74266 0.8989999
 
 Exposure by sector over time:
 
@@ -374,7 +380,7 @@ exposure |>
 
 Note this is scaling volatility by $\sqrt{h}$, which has some
 shortcomings, see for example [Diebold et.al.
-(1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
+(1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf).
 
 ``` r
 vola = dt |>
@@ -426,9 +432,7 @@ port_daily |>
 
 The Sharpe ratio measures risk-adjusted return:
 
-$$
-S = \frac{R_p - R_f}{\sigma_p}
-$$
+$$S = \frac{R_p - R_f}{\sigma_p}$$
 
 ``` r
 rf = 0.04 / 252 # daily risk-free rate (assuming 4% annual)
@@ -437,22 +441,20 @@ sharpe = port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
 sharpe
 ```
 
-    [1] 0.5689821
+    [1] 0.5820208
 
 #### Sortino ratio
 
 The Sortino ratio replaces total volatility with downside deviation:
 
-$$
-So = \frac{R_p - R_f}{\sigma_d}
-$$
+$$So = \frac{R_p - R_f}{\sigma_d}$$
 
 ``` r
-sortino = port_daily[, (mean(ret) - rf) / sd(pmin(ret - rf, 0)) * sqrt(252)]
+sortino = port_daily[, (mean(ret) - rf) / sqrt(mean(pmin(ret - rf, 0)^2)) * sqrt(252)]
 sortino
 ```
 
-    [1] 1.001399
+    [1] 0.8590101
 
 #### Rolling Sharpe
 
@@ -488,7 +490,7 @@ port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
 
              VaR_95      VaR_99
               <num>       <num>
-    1: -0.008465872 -0.01206041
+    1: -0.008258078 -0.01217685
 
 #### Expected Shortfall (CVaR)
 
@@ -503,15 +505,13 @@ port_daily[, .(
 
            CVaR_95     CVaR_99
              <num>       <num>
-    1: -0.01070236 -0.01343695
+    1: -0.01050067 -0.01366537
 
 #### Portfolio risk
 
 Portfolio risk is defined as:
 
-$$
-\sigma_p = \sqrt{w^T \Sigma w}
-$$
+$$\sigma_p = \sqrt{w^T \Sigma w}$$
 
 ``` r
 wgt = alloc$weight
@@ -523,22 +523,20 @@ port_risk = as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-    [1] 0.005480002
+    [1] 0.005427471
 
 #### Drawdown
 
 Maximum Drawdown is defined as follows:
 
-$$
-MDD = \max_{i \leq j} \left( \frac{V_j - V_i}{V_i} \right)
-$$
+$$MDD = \max_{i \leq j} \left( \frac{V_i - V_j}{V_i} \right)$$
 
 Instrument drawdown:
 
 ``` r
 drawdown = copy(dt) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
-  _[, drawdown := (cum_ret - cummax(cum_ret)), by = ticker]
+  _[, drawdown := (1 + cum_ret) / cummax(1 + cum_ret) - 1, by = ticker]
 head(drawdown)
 ```
 
@@ -556,8 +554,8 @@ head(drawdown)
     2:  0.017352273  0.0070014795 40.33275 0.020951117  0.000000000
     3:  0.014382158  0.0057944315 40.91701 0.035740695  0.000000000
     4:  0.001489923  0.0005964132 40.97802 0.037285018  0.000000000
-    5: -0.012981380 -0.0051589943 40.44951 0.023906650 -0.013378369
-    6:  0.008538542  0.0034300399 40.79637 0.032686751 -0.004598267
+    5: -0.012981380 -0.0051589943 40.44951 0.023906650 -0.012897486
+    6:  0.008538542  0.0034300399 40.79637 0.032686751 -0.004432983
 
 Portfolio drawdown:
 
@@ -565,18 +563,18 @@ Portfolio drawdown:
 drawdown = dt |>
   _[, .(wret = sum(wret)), by = date] |>
   _[, cum_ret := cumprod(1 + wret) - 1] |>
-  _[, drawdown := (cum_ret - cummax(cum_ret))]
+  _[, drawdown := (1 + cum_ret) / cummax(1 + cum_ret) - 1]
 head(drawdown)
 ```
 
-             date         wret     cum_ret     drawdown
-           <Date>        <num>       <num>        <num>
-    1: 2015-01-02  0.004329323 0.004329323  0.000000000
-    2: 2015-01-03  0.007637011 0.011999397  0.000000000
-    3: 2015-01-04  0.003732564 0.015776749  0.000000000
-    4: 2015-01-05 -0.003631594 0.012087860 -0.003688889
-    5: 2015-01-06 -0.001849199 0.010216308 -0.005560441
-    6: 2015-01-07  0.003303657 0.013553717 -0.002223032
+             date          wret      cum_ret     drawdown
+           <Date>         <num>        <num>        <num>
+    1: 2015-01-02  0.0009828602 0.0009828602  0.000000000
+    2: 2015-01-03  0.0040408499 0.0050276818  0.000000000
+    3: 2015-01-04  0.0113434459 0.0164281589  0.000000000
+    4: 2015-01-05 -0.0020238447 0.0143710661 -0.002023845
+    5: 2015-01-06 -0.0032291346 0.0110955253 -0.005246444
+    6: 2015-01-07  0.0027144964 0.0138401405 -0.002546189
 
 ``` r
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
@@ -584,7 +582,7 @@ drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawd
 
        min_drawdown avg_drawdown
               <num>        <num>
-    1:   -0.2950733  -0.08016726
+    1:   -0.1590444  -0.04180755
 
 #### Calmar ratio
 
@@ -595,15 +593,13 @@ calmar = port_daily[, (mean(ret) * 252) / abs(drawdown[, min(drawdown)])]
 calmar
 ```
 
-    [1] 0.3015244
+    [1] 0.5642973
 
 #### Tracking error
 
 Tracking error measures how closely a portfolio follows its benchmark:
 
-$$
-TE = \sqrt{\frac{1}{N-1} \sum_{i=1}^{N} (r_{p,i} - r_{b,i})^2}
-$$
+$$TE = \sqrt{\frac{1}{N-1} \sum_{i=1}^{N} (r_{p,i} - r_{b,i})^2}$$
 
 ``` r
 te = dt |>
@@ -619,7 +615,7 @@ te[, .(
 
           daily_te annual_te
              <num>     <num>
-    1: 0.009541491 0.1514665
+    1: 0.009476437 0.1504338
 
 #### Information ratio
 
@@ -629,16 +625,14 @@ Excess return per unit of tracking error:
 te[, mean(diff) / sd(diff) * sqrt(252)]
 ```
 
-    [1] 0.4945506
+    [1] 0.6129141
 
 #### Beta and Alpha
 
 Beta measures the portfolio’s sensitivity to the benchmark, Alpha the
 excess return:
 
-$$
-r_p = \alpha + \beta \cdot r_b + \epsilon
-$$
+$$r_p = \alpha + \beta \cdot r_b + \epsilon$$
 
 ``` r
 fit = te[, lm(port_ret ~ bmr_ret)]
@@ -646,9 +640,9 @@ coefs = coef(fit)
 data.table(alpha = coefs[1L] * 252, beta = coefs[2L])
 ```
 
-            alpha        beta
-            <num>       <num>
-    1: 0.08893703 0.002473253
+            alpha       beta
+            <num>      <num>
+    1: 0.08977906 0.01251528
 
 #### Correlation matrix
 
@@ -661,10 +655,10 @@ round(cor_mat, 3)
 ```
 
             AAPL   AMZN  GOOGL   MSFT
-    AAPL   1.000  0.009 -0.008  0.005
-    AMZN   0.009  1.000  0.017 -0.014
-    GOOGL -0.008  0.017  1.000 -0.024
-    MSFT   0.005 -0.014 -0.024  1.000
+    AAPL   1.000 -0.014 -0.003 -0.035
+    AMZN  -0.014  1.000  0.020 -0.015
+    GOOGL -0.003  0.020  1.000 -0.004
+    MSFT  -0.035 -0.015 -0.004  1.000
 
 ``` r
 cor_dt = as.data.table(cor_mat, keep.rownames = "ticker1") |>

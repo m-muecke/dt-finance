@@ -9,6 +9,7 @@ using the latest `data.table` package. Requires `data.table >= 1.18.0`.
 Load the required libraries:
 
 ```{r}
+#| message: false
 library(clock)
 library(data.table)
 library(ggplot2)
@@ -28,22 +29,14 @@ generate_prices = function(ticker, start_date, end_date) {
   dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n = length(dates)
   prices = cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
-  data.table(
-    ticker = ticker,
-    date = dates,
-    price = prices
-  )
+  data.table(ticker = ticker, date = dates, price = prices)
 }
 
 generate_benchmark = function(start_date, end_date) {
   dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
   n = length(dates)
   prices = cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
-  data.table(
-    ticker = "SP500",
-    date = dates,
-    price = prices
-  )
+  data.table(ticker = "SP500", date = dates, price = prices)
 }
 
 ticker = c("AAPL", "GOOGL", "MSFT", "AMZN")
@@ -75,7 +68,7 @@ holdings = dt |>
     rel_change = current_price / start_price - 1
   )] |>
   _[, rel_weight := value / sum(value)]
-holdings
+head(holdings)
 ```
 
 #### Portfolio Composition
@@ -146,9 +139,10 @@ head(ret_year)
 Return for the portfolio:
 
 ```{r}
-port_ret_week = dt[, .(ret = prod(1 + wret) - 1), by = .(year(date), week(date))]
-port_ret_month = dt[, .(ret = prod(1 + wret) - 1), by = .(yearmon(date))]
-port_ret_year = dt[, .(ret = prod(1 + wret) - 1), by = year(date)]
+port_daily = dt[, .(ret = sum(wret)), by = date]
+port_ret_week = port_daily[, .(ret = prod(1 + ret) - 1), by = .(year(date), week(date))]
+port_ret_month = port_daily[, .(ret = prod(1 + ret) - 1), by = .(yearmon(date))]
+port_ret_year = port_daily[, .(ret = prod(1 + ret) - 1), by = year(date)]
 head(port_ret_year)
 ```
 
@@ -156,8 +150,8 @@ head(port_ret_year)
 
 ```{r}
 #| dpi = 300
-port_ret_month_dt = dt[,
-  .(ret = prod(1 + wret) - 1),
+port_ret_month_dt = port_daily[,
+  .(ret = prod(1 + ret) - 1),
   by = .(year = year(date), month = month(date))
 ]
 
@@ -187,7 +181,7 @@ ggplot(
 
 #### Compare performance with a benchmark
 
-Calculat the benchmark return:
+Calculate the benchmark return:
 
 ```{r}
 bmr = generate_benchmark(start_date, end_date) |>
@@ -196,7 +190,7 @@ bmr = generate_benchmark(start_date, end_date) |>
   na.omit("ret")
 
 port = dt |>
-  _[, .(ret = prod(1 + wret) - 1, ticker = "Portfolio"), by = date] |>
+  _[, .(ret = sum(wret), ticker = "Portfolio"), by = date] |>
   rbind(bmr[, .(ticker, date, ret)]) |>
   setorder(ticker, date) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
@@ -223,7 +217,7 @@ port |>
     legend.position = "bottom"
   ) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
-  scale_y_continuous(labels = scales::label_percent(accuracy = 2)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark")
 ```
 
@@ -252,7 +246,7 @@ perf |>
   geom_line(aes(y = benchmark, color = "Benchmark")) +
   scale_color_manual(values = c("Portfolio" = "darkblue", "Benchmark" = "black")) +
   scale_fill_manual(values = c("TRUE" = "#00A651", "FALSE" = "#FF0000")) +
-  scale_y_continuous(labels = scales::label_percent(accuracy = 2L)) +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 1L)) +
   labs(title = "Cumulative Return: Portfolio vs. Benchmark") +
   theme_minimal() +
   theme(
@@ -316,7 +310,7 @@ exposure |>
 
 Note this is scaling volatility by $\sqrt{h}$, which has some shortcomings,
 see for example
-[Diebold et.al. (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf&ved=2ahUKEwjM2P-7jfGKAxUkBdsEHcrTCAkQFnoECBcQAQ&usg=AOvVaw36skVdLjP1SwTgB6J1rdnz).
+[Diebold et.al. (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf).
 
 
 ```{r}
@@ -379,7 +373,7 @@ So = \frac{R_p - R_f}{\sigma_d}
 $$
 
 ```{r}
-sortino = port_daily[, (mean(ret) - rf) / sd(pmin(ret - rf, 0)) * sqrt(252)]
+sortino = port_daily[, (mean(ret) - rf) / sqrt(mean(pmin(ret - rf, 0)^2)) * sqrt(252)]
 sortino
 ```
 
@@ -448,7 +442,7 @@ port_risk
 Maximum Drawdown is defined as follows:
 
 $$
-MDD = \max_{i \leq j} \left( \frac{V_j - V_i}{V_i} \right)
+MDD = \max_{i \leq j} \left( \frac{V_i - V_j}{V_i} \right)
 $$
 
 Instrument drawdown:
@@ -456,7 +450,7 @@ Instrument drawdown:
 ```{r}
 drawdown = copy(dt) |>
   _[, cum_ret := cumprod(1 + ret) - 1, by = ticker] |>
-  _[, drawdown := (cum_ret - cummax(cum_ret)), by = ticker]
+  _[, drawdown := (1 + cum_ret) / cummax(1 + cum_ret) - 1, by = ticker]
 head(drawdown)
 ```
 
@@ -466,7 +460,7 @@ Portfolio drawdown:
 drawdown = dt |>
   _[, .(wret = sum(wret)), by = date] |>
   _[, cum_ret := cumprod(1 + wret) - 1] |>
-  _[, drawdown := (cum_ret - cummax(cum_ret))]
+  _[, drawdown := (1 + cum_ret) / cummax(1 + cum_ret) - 1]
 head(drawdown)
 ```
 
