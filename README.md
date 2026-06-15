@@ -32,43 +32,50 @@ Generate some fake stock prices for a few tickers.
 ``` r
 set.seed(1994)
 
-generate_prices = function(ticker, start_date, end_date) {
-  dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
-  n = length(dates)
-  prices = cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
-  data.table(ticker = ticker, date = dates, price = prices)
-}
-
-generate_benchmark = function(start_date, end_date) {
-  dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
-  n = length(dates)
-  prices = cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
-  data.table(ticker = "SP500", date = dates, price = prices)
-}
-
-ticker = c("AAPL", "GOOGL", "MSFT", "AMZN")
 start_date = "2015-01-01"
 end_date = Sys.Date()
+dates = seq(as.Date(start_date), end_date, by = "1 day")
+n = length(dates)
 
-dt = rbindlist(lapply(ticker, generate_prices, start_date, end_date))
-alloc = data.table(
-  ticker = ticker,
-  weight = c(0.4, 0.3, 0.2, 0.1),
-  sector = c("Technology", "Technology", "Technology", "Consumer Cyclical"),
-  country = c("USA", "USA", "USA", "USA")
+market_ret = rnorm(n, mean = 0.0003, sd = 0.008)
+sector_ret = list(
+  technology = rnorm(n, mean = 0, sd = 0.004),
+  consumer_cyclical = rnorm(n, mean = 0, sd = 0.005)
 )
-dt = dt[alloc, on = "ticker"]
+
+alloc = data.table(
+  ticker = c("AAPL", "GOOGL", "MSFT", "AMZN"),
+  weight = c(0.4, 0.3, 0.2, 0.1),
+  sector = c("technology", "technology", "technology", "consumer_cyclical"),
+  country = c("USA", "USA", "USA", "USA"),
+  alpha = c(0.0004, 0.0002, 0.0003, 0.0001),
+  beta = c(1.1, 1.3, 0.9, 1.4),
+  idio_sd = c(0.010, 0.012, 0.009, 0.014)
+)
+
+generate_prices = function(alpha, beta, sector, idio_sd) {
+  ret = alpha + beta * market_ret + sector_ret[[sector]] + rnorm(n, sd = idio_sd)
+  data.table(date = dates, price = cumprod(1 + ret) * 100)
+}
+
+generate_benchmark = function() {
+  data.table(ticker = "SP500", date = dates, price = cumprod(1 + market_ret) * 3000)
+}
+
+dt = alloc |>
+  _[, generate_prices(alpha, beta, sector, idio_sd), by = ticker] |>
+  _[alloc[, .(ticker, weight, sector, country)], on = "ticker"]
 head(dt)
 ```
 
        ticker       date     price weight     sector country
        <char>     <Date>     <num>  <num>     <char>  <char>
-    1:   AAPL 2015-01-01  98.76269    0.4 Technology     USA
-    2:   AAPL 2015-01-02  99.09730    0.4 Technology     USA
-    3:   AAPL 2015-01-03 100.83187    0.4 Technology     USA
-    4:   AAPL 2015-01-04 102.29253    0.4 Technology     USA
-    5:   AAPL 2015-01-05 102.44505    0.4 Technology     USA
-    6:   AAPL 2015-01-06 101.12377    0.4 Technology     USA
+    1:   AAPL 2015-01-01  99.47736    0.4 technology     USA
+    2:   AAPL 2015-01-02  99.47069    0.4 technology     USA
+    3:   AAPL 2015-01-03 101.97927    0.4 technology     USA
+    4:   AAPL 2015-01-04 101.97867    0.4 technology     USA
+    5:   AAPL 2015-01-05 102.67212    0.4 technology     USA
+    6:   AAPL 2015-01-06 100.72686    0.4 technology     USA
 
 #### Holdings
 
@@ -89,16 +96,16 @@ head(holdings)
 
        ticker start_price current_price weight     value abs_change rel_change
        <char>       <num>         <num>  <num>     <num>      <num>      <num>
-    1:   AAPL    98.76269      381.5496    0.4 152.61986  282.78696  2.8632976
-    2:  GOOGL   100.17023      156.4031    0.3  46.92093   56.23287  0.5613731
-    3:   MSFT    99.31167      794.6858    0.2 158.93715  695.37410  7.0019374
-    4:   AMZN   101.53155      688.9587    0.1  68.89587  587.42719  5.7856617
+    1:   AAPL    99.47736     468.68393    0.4 187.47357  369.20657  3.7114635
+    2:  GOOGL   100.24577      34.63296    0.3  10.38989  -65.61281 -0.6545195
+    3:   MSFT    98.36527     620.52420    0.2 124.10484  522.15893  5.3083671
+    4:   AMZN    97.75700    1505.00673    0.1 150.50067 1407.24973 14.3953859
        rel_weight
             <num>
-    1:  0.3571109
-    2:  0.1097890
-    3:  0.3718926
-    4:  0.1612075
+    1: 0.39679552
+    2: 0.02199062
+    3: 0.26267300
+    4: 0.31854086
 
 #### Portfolio Composition
 
@@ -137,22 +144,22 @@ dt = dt |>
 head(dt)
 ```
 
-       ticker       date    price weight     sector country          ret
-       <char>     <Date>    <num>  <num>     <char>  <char>        <num>
-    1:   AAPL 2015-01-02  99.0973    0.4 Technology     USA  0.003388113
-    2:   AAPL 2015-01-03 100.8319    0.4 Technology     USA  0.017503699
-    3:   AAPL 2015-01-04 102.2925    0.4 Technology     USA  0.014486079
-    4:   AAPL 2015-01-05 102.4451    0.4 Technology     USA  0.001491033
-    5:   AAPL 2015-01-06 101.1238    0.4 Technology     USA -0.012897486
-    6:   AAPL 2015-01-07 101.9909    0.4 Technology     USA  0.008575100
-            log_ret          wret    value
-              <num>         <num>    <num>
-    1:  0.003382387  0.0013552454 39.63892
-    2:  0.017352273  0.0070014795 40.33275
-    3:  0.014382158  0.0057944315 40.91701
-    4:  0.001489923  0.0005964132 40.97802
-    5: -0.012981380 -0.0051589943 40.44951
-    6:  0.008538542  0.0034300399 40.79637
+       ticker       date     price weight     sector country           ret
+       <char>     <Date>     <num>  <num>     <char>  <char>         <num>
+    1:   AAPL 2015-01-02  99.47069    0.4 technology     USA -6.698588e-05
+    2:   AAPL 2015-01-03 101.97927    0.4 technology     USA  2.521930e-02
+    3:   AAPL 2015-01-04 101.97867    0.4 technology     USA -5.865964e-06
+    4:   AAPL 2015-01-05 102.67212    0.4 technology     USA  6.799941e-03
+    5:   AAPL 2015-01-06 100.72686    0.4 technology     USA -1.894640e-02
+    6:   AAPL 2015-01-07 102.37067    0.4 technology     USA  1.631949e-02
+             log_ret          wret    value
+               <num>         <num>    <num>
+    1: -6.698812e-05 -2.679435e-05 39.78828
+    2:  2.490654e-02  1.008772e-02 40.79171
+    3: -5.865981e-06 -2.346386e-06 40.79147
+    4:  6.776926e-03  2.719976e-03 41.06885
+    5: -1.912818e-02 -7.578559e-03 40.29074
+    6:  1.618776e-02  6.527795e-03 40.94827
 
 ``` r
 dt |>
@@ -176,14 +183,14 @@ ret_year = dt[, .(ret = prod(1 + ret) - 1), by = .(ticker, year(date))]
 head(ret_year)
 ```
 
-       ticker  year         ret
-       <char> <int>       <num>
-    1:   AAPL  2015  0.16949691
-    2:   AAPL  2016  0.13929434
-    3:   AAPL  2017  0.05661279
-    4:   AAPL  2018  0.21636018
-    5:   AAPL  2019 -0.29360467
-    6:   AAPL  2020  0.43077795
+       ticker  year        ret
+       <char> <int>      <num>
+    1:   AAPL  2015 -0.1137879
+    2:   AAPL  2016  0.3133051
+    3:   AAPL  2017 -0.0882069
+    4:   AAPL  2018  0.3208711
+    5:   AAPL  2019 -0.2739272
+    6:   AAPL  2020  0.7779436
 
 Return for the portfolio:
 
@@ -197,12 +204,12 @@ head(port_ret_year)
 
         year         ret
        <int>       <num>
-    1:  2015  0.17945335
-    2:  2016  0.09837058
-    3:  2017 -0.04163755
-    4:  2018  0.10244069
-    5:  2019 -0.09462773
-    6:  2020  0.38000888
+    1:  2015 -0.06276146
+    2:  2016  0.29736185
+    3:  2017 -0.01610340
+    4:  2018  0.10483460
+    5:  2019 -0.31876358
+    6:  2020  0.72887222
 
 #### Monthly return heatmap
 
@@ -243,7 +250,7 @@ ggplot(
 Calculate the benchmark return:
 
 ``` r
-bmr = generate_benchmark(start_date, end_date) |>
+bmr = generate_benchmark() |>
   setorder(date) |>
   _[, ret := price / shift(price) - 1] |>
   na.omit("ret")
@@ -316,12 +323,12 @@ head(exposure)
 
              date     sector    value    weight
            <Date>     <char>    <num>     <num>
-    1: 2015-01-02 Technology 89.57241 0.8986877
-    2: 2015-01-03 Technology 89.91333 0.8985023
-    3: 2015-01-04 Technology 90.88885 0.8980845
-    4: 2015-01-05 Technology 90.77618 0.8987805
-    5: 2015-01-06 Technology 90.40577 0.8980858
-    6: 2015-01-07 Technology 90.74266 0.8989999
+    1: 2015-01-02 technology 90.14190 0.9009292
+    2: 2015-01-03 technology 92.02887 0.8985794
+    3: 2015-01-04 technology 93.36167 0.9004728
+    4: 2015-01-05 technology 93.81975 0.9007150
+    5: 2015-01-06 technology 93.03513 0.9014982
+    6: 2015-01-07 technology 94.00122 0.9016562
 
 Exposure by sector over time:
 
@@ -356,14 +363,14 @@ vola = dt |>
 head(vola)
 ```
 
-       ticker  year  daily_vola weekly_vola monthly_vola yearly_vola
-       <char> <int>       <num>       <num>        <num>       <num>
-    1:   AAPL  2015 0.009838597  0.02199977   0.04508612   0.1561829
-    2:   AAPL  2016 0.010356613  0.02315809   0.04745996   0.1644061
-    3:   AAPL  2017 0.009602949  0.02147285   0.04400624   0.1524421
-    4:   AAPL  2018 0.010043538  0.02245803   0.04602527   0.1594362
-    5:   AAPL  2019 0.010341000  0.02312318   0.04738842   0.1641583
-    6:   AAPL  2020 0.009245012  0.02067247   0.04236597   0.1467600
+       ticker  year daily_vola weekly_vola monthly_vola yearly_vola
+       <char> <int>      <num>       <num>        <num>       <num>
+    1:   AAPL  2015 0.01444360  0.03229687   0.06618890   0.2292851
+    2:   AAPL  2016 0.01456959  0.03257860   0.06676626   0.2312851
+    3:   AAPL  2017 0.01343705  0.03004617   0.06157632   0.2133066
+    4:   AAPL  2018 0.01399629  0.03129666   0.06413907   0.2221843
+    5:   AAPL  2019 0.01313848  0.02937853   0.06020808   0.2085669
+    6:   AAPL  2020 0.01387443  0.03102418   0.06358064   0.2202498
 
 #### Rolling volatility
 
@@ -394,7 +401,7 @@ sharpe = port_daily[, (mean(ret) - rf) / sd(ret) * sqrt(252)]
 sharpe
 ```
 
-    [1] 0.5820208
+    [1] 0.2447972
 
 #### Sortino ratio
 
@@ -407,7 +414,7 @@ sortino = port_daily[, (mean(ret) - rf) / sqrt(mean(pmin(ret - rf, 0)^2)) * sqrt
 sortino
 ```
 
-    [1] 0.8590101
+    [1] 0.3549463
 
 #### Rolling Sharpe
 
@@ -433,9 +440,9 @@ Historical VaR at the 95% and 99% confidence levels:
 port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
 ```
 
-             VaR_95      VaR_99
-              <num>       <num>
-    1: -0.008258078 -0.01217685
+            VaR_95      VaR_99
+             <num>       <num>
+    1: -0.01859053 -0.02503754
 
 #### Expected Shortfall (CVaR)
 
@@ -448,9 +455,9 @@ port_daily[, .(
 )]
 ```
 
-           CVaR_95     CVaR_99
-             <num>       <num>
-    1: -0.01050067 -0.01366537
+           CVaR_95    CVaR_99
+             <num>      <num>
+    1: -0.02295057 -0.0294094
 
 #### Portfolio risk
 
@@ -459,16 +466,16 @@ Portfolio risk is defined as:
 $$\sigma_p = \sqrt{w^T \Sigma w}$$
 
 ``` r
-wgt = alloc$weight
 cov_mat = dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
   _[, date := NULL] |>
   cov(use = "pairwise.complete.obs")
+wgt = alloc[colnames(cov_mat), weight, on = "ticker"]
 port_risk = as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
 
-    [1] 0.005427471
+    [1] 0.01165301
 
 #### Drawdown
 
@@ -485,22 +492,22 @@ drawdown = copy(dt) |>
 head(drawdown)
 ```
 
-       ticker       date    price weight     sector country          ret
-       <char>     <Date>    <num>  <num>     <char>  <char>        <num>
-    1:   AAPL 2015-01-02  99.0973    0.4 Technology     USA  0.003388113
-    2:   AAPL 2015-01-03 100.8319    0.4 Technology     USA  0.017503699
-    3:   AAPL 2015-01-04 102.2925    0.4 Technology     USA  0.014486079
-    4:   AAPL 2015-01-05 102.4451    0.4 Technology     USA  0.001491033
-    5:   AAPL 2015-01-06 101.1238    0.4 Technology     USA -0.012897486
-    6:   AAPL 2015-01-07 101.9909    0.4 Technology     USA  0.008575100
-            log_ret          wret    value     cum_ret     drawdown
-              <num>         <num>    <num>       <num>        <num>
-    1:  0.003382387  0.0013552454 39.63892 0.003388113  0.000000000
-    2:  0.017352273  0.0070014795 40.33275 0.020951117  0.000000000
-    3:  0.014382158  0.0057944315 40.91701 0.035740695  0.000000000
-    4:  0.001489923  0.0005964132 40.97802 0.037285018  0.000000000
-    5: -0.012981380 -0.0051589943 40.44951 0.023906650 -0.012897486
-    6:  0.008538542  0.0034300399 40.79637 0.032686751 -0.004432983
+       ticker       date     price weight     sector country           ret
+       <char>     <Date>     <num>  <num>     <char>  <char>         <num>
+    1:   AAPL 2015-01-02  99.47069    0.4 technology     USA -6.698588e-05
+    2:   AAPL 2015-01-03 101.97927    0.4 technology     USA  2.521930e-02
+    3:   AAPL 2015-01-04 101.97867    0.4 technology     USA -5.865964e-06
+    4:   AAPL 2015-01-05 102.67212    0.4 technology     USA  6.799941e-03
+    5:   AAPL 2015-01-06 100.72686    0.4 technology     USA -1.894640e-02
+    6:   AAPL 2015-01-07 102.37067    0.4 technology     USA  1.631949e-02
+             log_ret          wret    value       cum_ret      drawdown
+               <num>         <num>    <num>         <num>         <num>
+    1: -6.698812e-05 -2.679435e-05 39.78828 -6.698588e-05  0.000000e+00
+    2:  2.490654e-02  1.008772e-02 40.79171  2.515062e-02  0.000000e+00
+    3: -5.865981e-06 -2.346386e-06 40.79147  2.514461e-02 -5.865964e-06
+    4:  6.776926e-03  2.719976e-03 41.06885  3.211553e-02  0.000000e+00
+    5: -1.912818e-02 -7.578559e-03 40.29074  1.256066e-02 -1.894640e-02
+    6:  1.618776e-02  6.527795e-03 40.94827  2.908513e-02 -2.936105e-03
 
 Portfolio drawdown:
 
@@ -512,14 +519,14 @@ drawdown = dt |>
 head(drawdown)
 ```
 
-             date          wret      cum_ret     drawdown
-           <Date>         <num>        <num>        <num>
-    1: 2015-01-02  0.0009828602 0.0009828602  0.000000000
-    2: 2015-01-03  0.0040408499 0.0050276818  0.000000000
-    3: 2015-01-04  0.0113434459 0.0164281589  0.000000000
-    4: 2015-01-05 -0.0020238447 0.0143710661 -0.002023845
-    5: 2015-01-06 -0.0032291346 0.0110955253 -0.005246444
-    6: 2015-01-07  0.0027144964 0.0138401405 -0.002546189
+             date         wret     cum_ret     drawdown
+           <Date>        <num>       <num>        <num>
+    1: 2015-01-02  0.007441747 0.007441747  0.000000000
+    2: 2015-01-03  0.023574598 0.031191782  0.000000000
+    3: 2015-01-04  0.012101326 0.043670570  0.000000000
+    4: 2015-01-05  0.004769576 0.048648436  0.000000000
+    5: 2015-01-06 -0.009633596 0.038546181 -0.009633596
+    6: 2015-01-07  0.010628405 0.049584270  0.000000000
 
 ``` r
 drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawdown))]
@@ -527,7 +534,7 @@ drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawd
 
        min_drawdown avg_drawdown
               <num>        <num>
-    1:   -0.1590444  -0.04180755
+    1:    -0.413378   -0.1203853
 
 #### Calmar ratio
 
@@ -538,7 +545,7 @@ calmar = port_daily[, (mean(ret) * 252) / abs(drawdown[, min(drawdown)])]
 calmar
 ```
 
-    [1] 0.5642973
+    [1] 0.2063691
 
 #### Tracking error
 
@@ -560,7 +567,7 @@ te[, .(
 
           daily_te annual_te
              <num>     <num>
-    1: 0.009476437 0.1504338
+    1: 0.007004211 0.1111884
 
 #### Information ratio
 
@@ -570,7 +577,7 @@ Excess return per unit of tracking error:
 te[, mean(diff) / sd(diff) * sqrt(252)]
 ```
 
-    [1] 0.6129141
+    [1] 0.3124084
 
 #### Beta and Alpha
 
@@ -585,9 +592,9 @@ coefs = coef(fit)
 data.table(alpha = coefs[1L] * 252, beta = coefs[2L])
 ```
 
-            alpha       beta
-            <num>      <num>
-    1: 0.08977906 0.01251528
+            alpha     beta
+            <num>    <num>
+    1: 0.02587615 1.175196
 
 #### Correlation matrix
 
@@ -599,11 +606,11 @@ cor_mat = dt |>
 round(cor_mat, 3)
 ```
 
-            AAPL   AMZN  GOOGL   MSFT
-    AAPL   1.000 -0.014 -0.003 -0.035
-    AMZN  -0.014  1.000  0.020 -0.015
-    GOOGL -0.003  0.020  1.000 -0.004
-    MSFT  -0.035 -0.015 -0.004  1.000
+           AAPL  AMZN GOOGL  MSFT
+    AAPL  1.000 0.393 0.484 0.476
+    AMZN  0.393 1.000 0.376 0.366
+    GOOGL 0.484 0.376 1.000 0.461
+    MSFT  0.476 0.366 0.461 1.000
 
 ``` r
 cor_dt = as.data.table(cor_mat, keep.rownames = "ticker1") |>

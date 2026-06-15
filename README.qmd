@@ -35,32 +35,39 @@ Generate some fake stock prices for a few tickers.
 ```{r}
 set.seed(1994)
 
-generate_prices = function(ticker, start_date, end_date) {
-  dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
-  n = length(dates)
-  prices = cumprod(1 + rnorm(n, mean = 0.0005, sd = 0.01)) * 100
-  data.table(ticker = ticker, date = dates, price = prices)
-}
-
-generate_benchmark = function(start_date, end_date) {
-  dates = seq(as.Date(start_date), as.Date(end_date), by = "1 day")
-  n = length(dates)
-  prices = cumprod(1 + rnorm(n, mean = 0.0003, sd = 0.008)) * 3000
-  data.table(ticker = "SP500", date = dates, price = prices)
-}
-
-ticker = c("AAPL", "GOOGL", "MSFT", "AMZN")
 start_date = "2015-01-01"
 end_date = Sys.Date()
+dates = seq(as.Date(start_date), end_date, by = "1 day")
+n = length(dates)
 
-dt = rbindlist(lapply(ticker, generate_prices, start_date, end_date))
-alloc = data.table(
-  ticker = ticker,
-  weight = c(0.4, 0.3, 0.2, 0.1),
-  sector = c("Technology", "Technology", "Technology", "Consumer Cyclical"),
-  country = c("USA", "USA", "USA", "USA")
+market_ret = rnorm(n, mean = 0.0003, sd = 0.008)
+sector_ret = list(
+  technology = rnorm(n, mean = 0, sd = 0.004),
+  consumer_cyclical = rnorm(n, mean = 0, sd = 0.005)
 )
-dt = dt[alloc, on = "ticker"]
+
+alloc = data.table(
+  ticker = c("AAPL", "GOOGL", "MSFT", "AMZN"),
+  weight = c(0.4, 0.3, 0.2, 0.1),
+  sector = c("technology", "technology", "technology", "consumer_cyclical"),
+  country = c("USA", "USA", "USA", "USA"),
+  alpha = c(0.0004, 0.0002, 0.0003, 0.0001),
+  beta = c(1.1, 1.3, 0.9, 1.4),
+  idio_sd = c(0.010, 0.012, 0.009, 0.014)
+)
+
+generate_prices = function(alpha, beta, sector, idio_sd) {
+  ret = alpha + beta * market_ret + sector_ret[[sector]] + rnorm(n, sd = idio_sd)
+  data.table(date = dates, price = cumprod(1 + ret) * 100)
+}
+
+generate_benchmark = function() {
+  data.table(ticker = "SP500", date = dates, price = cumprod(1 + market_ret) * 3000)
+}
+
+dt = alloc |>
+  _[, generate_prices(alpha, beta, sector, idio_sd), by = ticker] |>
+  _[alloc[, .(ticker, weight, sector, country)], on = "ticker"]
 head(dt)
 ```
 
@@ -186,7 +193,7 @@ ggplot(
 Calculate the benchmark return:
 
 ```{r}
-bmr = generate_benchmark(start_date, end_date) |>
+bmr = generate_benchmark() |>
   setorder(date) |>
   _[, ret := price / shift(price) - 1] |>
   na.omit("ret")
@@ -373,11 +380,11 @@ $$
 $$
 
 ```{r}
-wgt = alloc$weight
 cov_mat = dt |>
   dcast(date ~ ticker, value.var = "log_ret") |>
   _[, date := NULL] |>
   cov(use = "pairwise.complete.obs")
+wgt = alloc[colnames(cov_mat), weight, on = "ticker"]
 port_risk = as.numeric(sqrt(t(wgt) %*% cov_mat %*% wgt))
 port_risk
 ```
