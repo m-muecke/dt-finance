@@ -596,6 +596,70 @@ data.table(alpha = coefs[1L] * 252, beta = coefs[2L])
             <num>    <num>
     1: 0.02587615 1.175196
 
+#### Multi-factor model
+
+The single-factor model above explains returns with the benchmark alone.
+Each instrument is in fact driven by a common market factor plus a
+sector factor, so we can regress every ticker on both and recover its
+factor loadings. Assemble the factors and reshape them to long form,
+then match each ticker to its own sector factor with a join on `date`
+and `sector`:
+
+``` r
+factors = data.table(
+  date = dates,
+  mkt = market_ret,
+  technology = sector_ret$technology,
+  consumer_cyclical = sector_ret$consumer_cyclical
+) |>
+  melt(id.vars = c("date", "mkt"), variable.name = "sector", value.name = "sec_ret") |>
+  _[, sector := as.character(sector)]
+
+reg = factors[dt, on = .(date, sector), nomatch = NULL]
+```
+
+Run one regression per ticker and compare the recovered market beta with
+the value that was used to generate the data:
+
+``` r
+loadings = reg[, as.list(coef(lm(ret ~ mkt + sec_ret))), by = ticker] |>
+  setnames(c("ticker", "alpha", "mkt_beta", "sector_beta")) |>
+  _[, alpha := alpha * 252]
+loadings[alloc, on = "ticker", true_beta := i.beta]
+loadings
+```
+
+       ticker       alpha  mkt_beta sector_beta true_beta
+       <char>       <num>     <num>       <num>     <num>
+    1:   AAPL  0.09721931 1.1368851   1.0206042       1.1
+    2:   AMZN  0.13186184 1.3997164   0.9847375       1.4
+    3:  GOOGL -0.06004923 1.3038798   1.0267476       1.3
+    4:   MSFT  0.12166385 0.9063013   1.0575958       0.9
+
+#### Rolling market beta
+
+Beta is not static. Estimate it over a rolling window from the ratio of
+the rolling covariance with the market to the market variance:
+
+``` r
+reg |>
+  setorder(ticker, date) |>
+  _[, let(
+    cov_rm = frollmean(ret * mkt, window) - frollmean(ret, window) * frollmean(mkt, window),
+    var_m = frollmean(mkt^2, window) - frollmean(mkt, window)^2
+  ), by = ticker] |>
+  _[, roll_beta := cov_rm / var_m] |>
+  na.omit("roll_beta") |>
+  ggplot(aes(x = date, y = roll_beta, color = ticker)) +
+  geom_line() +
+  scale_color_brewer(palette = "Set2") +
+  labs(title = "Rolling Market Beta (63-day)") +
+  theme_finance +
+  theme(legend.position = "bottom")
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-32-1.png)
+
 #### Correlation matrix
 
 ``` r
@@ -629,4 +693,4 @@ ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
   )
 ```
 
-![](README_files/figure-commonmark/unnamed-chunk-31-1.png)
+![](README_files/figure-commonmark/unnamed-chunk-34-1.png)
