@@ -644,10 +644,13 @@ the rolling covariance with the market to the market variance:
 ``` r
 reg |>
   setorder(ticker, date) |>
-  _[, let(
-    cov_rm = frollmean(ret * mkt, window) - frollmean(ret, window) * frollmean(mkt, window),
-    var_m = frollmean(mkt^2, window) - frollmean(mkt, window)^2
-  ), by = ticker] |>
+  _[,
+    let(
+      cov_rm = frollmean(ret * mkt, window) - frollmean(ret, window) * frollmean(mkt, window),
+      var_m = frollmean(mkt^2, window) - frollmean(mkt, window)^2
+    ),
+    by = ticker
+  ] |>
   _[, roll_beta := cov_rm / var_m] |>
   na.omit("roll_beta") |>
   ggplot(aes(x = date, y = roll_beta, color = ticker)) +
