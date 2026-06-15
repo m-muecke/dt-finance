@@ -1,6 +1,34 @@
 # Finance with {data.table}
 
 
+- [Portfolio Management](#portfolio-management)
+  - [Generate data](#generate-data)
+  - [Holdings](#holdings)
+  - [Portfolio Composition](#portfolio-composition)
+  - [Calculate returns](#calculate-returns)
+  - [Calculate weekly, monthly and yearly
+    returns](#calculate-weekly-monthly-and-yearly-returns)
+  - [Monthly return heatmap](#monthly-return-heatmap)
+  - [Compare performance with a
+    benchmark](#compare-performance-with-a-benchmark)
+  - [Analyse the portfolio exposure](#analyse-the-portfolio-exposure)
+  - [Calculate volatility](#calculate-volatility)
+  - [Rolling volatility](#rolling-volatility)
+  - [Sharpe ratio](#sharpe-ratio)
+  - [Sortino ratio](#sortino-ratio)
+  - [Rolling Sharpe](#rolling-sharpe)
+  - [Value at Risk](#value-at-risk)
+  - [Expected Shortfall (CVaR)](#expected-shortfall-cvar)
+  - [Portfolio risk](#portfolio-risk)
+  - [Drawdown](#drawdown)
+  - [Calmar ratio](#calmar-ratio)
+  - [Tracking error](#tracking-error)
+  - [Information ratio](#information-ratio)
+  - [Beta and Alpha](#beta-and-alpha)
+  - [Multi-factor model](#multi-factor-model)
+  - [Rolling market beta](#rolling-market-beta)
+  - [Correlation matrix](#correlation-matrix)
+
 Just a place to store some code snippets and notes on finance with using
 the latest `data.table` package. Requires `data.table >= 1.18.0`.
 

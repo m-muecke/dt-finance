@@ -1,6 +1,9 @@
 ---
 title: "Finance with {data.table}"
-format: gfm
+format:
+  gfm:
+    toc: true
+    toc-depth: 4
 ---
 
 Just a place to store some code snippets and notes on finance with
