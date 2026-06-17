@@ -63,7 +63,21 @@ theme_finance = theme_minimal() +
 
 #### Generate data
 
-Generate some fake stock prices for a few tickers.
+We need a reproducible universe to work with, so rather than download
+real quotes we simulate them from a known return-generating process.
+Each instrument $i$ earns a daily return driven by a common market
+factor, a sector factor shared by its peers, and idiosyncratic noise:
+
+$$r_{i,t} = \alpha_i + \beta_i \, r_{m,t} + r_{s(i),t} + \epsilon_{i,t},
+\qquad \epsilon_{i,t} \sim \mathcal{N}(0, \sigma_i^2)$$
+
+Prices are then the cumulative product of these returns starting from a
+base level $P_{i,0}$:
+
+$$P_{i,t} = P_{i,0} \prod_{u=1}^{t} (1 + r_{i,u})$$
+
+Because we choose $\alpha_i$, $\beta_i$ and the factors ourselves, we
+can later check that the estimators below recover them.
 
 ``` r
 set.seed(1994)
@@ -115,6 +129,17 @@ head(dt)
 
 #### Holdings
 
+A holdings table is the snapshot view of the portfolio: where does the
+money sit right now? We collapse the price history to the first and last
+observation per instrument, value each position at its current price,
+and express it as a share of the total. The position value and its
+portfolio weight are
+
+$$v_i = w_i \, P_{i,T}, \qquad \tilde{w}_i = \frac{v_i}{\sum_j v_j}$$
+
+where $w_i$ is the target weight and $\tilde{w}_i$ the realized weight
+after prices have drifted apart.
+
 ``` r
 holdings = dt |>
   _[,
@@ -145,6 +170,10 @@ head(holdings)
 
 #### Portfolio Composition
 
+To see concentration at a glance we plot the realized weights
+$\tilde{w}_i$ as a pie chart. Because $\sum_i \tilde{w}_i = 1$, each
+slice is the fraction of total portfolio value held in that instrument.
+
 ``` r
 ggplot(holdings, aes(x = "", y = rel_weight, fill = ticker)) +
   geom_col(width = 1) +
@@ -165,6 +194,18 @@ ggplot(holdings, aes(x = "", y = rel_weight, fill = ticker)) +
 ![](README_files/figure-commonmark/unnamed-chunk-4-1.png)
 
 #### Calculate returns
+
+Returns, not prices, are the unit of analysis for almost everything that
+follows, because they are roughly stationary and comparable across
+instruments. We use two definitions — the simple (arithmetic) return and
+the log return:
+
+$$r_t = \frac{P_t}{P_{t-1}} - 1, \qquad \ell_t = \ln \frac{P_t}{P_{t-1}} = \ln(1 + r_t)$$
+
+Simple returns aggregate cleanly across instruments (the portfolio
+return is a weighted sum), while log returns aggregate cleanly across
+time (they add up over periods). The position’s contribution to the
+portfolio is the weighted return $w_i \, r_{i,t}$.
 
 ``` r
 logret = function(x) {
@@ -210,6 +251,15 @@ dt |>
 
 #### Calculate weekly, monthly and yearly returns
 
+Daily returns compound into longer-horizon returns geometrically, not by
+addition: holding through a window $[t_1, t_2]$ multiplies the
+per-period growth factors,
+
+$$r_{[t_1, t_2]} = \prod_{t=t_1}^{t_2} (1 + r_t) - 1$$
+
+The same compounding applies to the portfolio, whose daily return is the
+weighted sum of its constituents, $r_{p,t} = \sum_i w_i \, r_{i,t}$.
+
 Return for each instrument:
 
 ``` r
@@ -249,6 +299,11 @@ head(port_ret_year)
 
 #### Monthly return heatmap
 
+Compounding the daily portfolio return within each calendar month gives
+one number per month, $r_{p,[m]} = \prod_{t \in m} (1 + r_{p,t}) - 1$.
+Laying these out as a year × month grid makes seasonality and the worst
+months jump out at a glance.
+
 ``` r
 port_ret_month_dt = port_daily[,
   .(ret = prod(1 + ret) - 1),
@@ -282,6 +337,13 @@ ggplot(
 ![](README_files/figure-commonmark/unnamed-chunk-9-1.png)
 
 #### Compare performance with a benchmark
+
+A return number in isolation says little; what matters is performance
+*relative* to an investable alternative such as the market index. We
+track the cumulative (wealth) return of both, which is what an
+investor’s account would actually show:
+
+$$R_t = \prod_{u=1}^{t} (1 + r_u) - 1$$
 
 Calculate the benchmark return:
 
@@ -350,6 +412,13 @@ perf |>
 
 #### Analyse the portfolio exposure
 
+Risk is rarely spread evenly across sectors, so we decompose the
+portfolio value by sector at each date. The exposure of sector $s$ is
+the fraction of total value held in its members, and these fractions
+drift over time as prices move:
+
+$$w_{s,t} = \frac{\sum_{i \in s} v_{i,t}}{\sum_j v_{j,t}}$$
+
 ``` r
 exposure = dt |>
   _[, .(value = sum(value)), by = .(date, sector)] |>
@@ -384,8 +453,20 @@ exposure |>
 
 #### Calculate volatility
 
-Note this is scaling volatility by $\sqrt{h}$, which has some
-shortcomings, see for example [Diebold et.al.
+Volatility quantifies how dispersed returns are around their mean — the
+standard measure of risk. We estimate it as the sample standard
+deviation of (log) returns over a period:
+
+$$\sigma_d = \sqrt{\frac{1}{N - 1} \sum_{t=1}^{N} (\ell_t - \bar{\ell})^2}$$
+
+To compare horizons we annualize. Under the (strong) assumption of
+i.i.d. returns, variance grows linearly with time, so volatility grows
+with the square root of the number of periods $h$:
+
+$$\sigma_h = \sigma_d \sqrt{h}$$
+
+Note this $\sqrt{h}$ scaling has some shortcomings, see for example
+[Diebold et.al.
 (1996)](https://www.sas.upenn.edu/~fdiebold/papers/paper18/dsi.pdf).
 
 ``` r
@@ -409,6 +490,13 @@ head(vola)
     6:   AAPL  2020 0.01318090  0.02947338   0.06040246   0.2092403
 
 #### Rolling volatility
+
+A single full-sample number hides how risk changes over time.
+Recomputing the annualized standard deviation over a trailing window of
+$w$ days turns volatility into a time series that reveals calm and
+turbulent regimes:
+
+$$\sigma_t^{(w)} = \sqrt{252} \cdot \sqrt{\frac{1}{w - 1} \sum_{u=t-w+1}^{t} (r_u - \bar{r}_t)^2}$$
 
 ``` r
 window = 63L # ~3 months
@@ -441,9 +529,12 @@ sharpe
 
 #### Sortino ratio
 
-The Sortino ratio replaces total volatility with downside deviation:
+Investors do not mind upside volatility — only losses. The Sortino ratio
+therefore replaces total volatility with the *downside deviation*, which
+penalizes only returns below the target (here the risk-free rate):
 
-$$So = \frac{R_p - R_f}{\sigma_d}$$
+$$So = \frac{R_p - R_f}{\sigma_d},
+\qquad \sigma_d = \sqrt{\frac{1}{N} \sum_{t=1}^{N} \min(r_t - R_f, \, 0)^2}$$
 
 ``` r
 sortino = port_daily[, (mean(ret) - rf) / sqrt(mean(pmin(ret - rf, 0)^2)) * sqrt(252)]
@@ -453,6 +544,12 @@ sortino
     [1] 0.3564971
 
 #### Rolling Sharpe
+
+Just like volatility, risk-adjusted return is not constant. Evaluating
+the Sharpe ratio over a trailing window shows when the portfolio was
+actually being paid for the risk it took:
+
+$$S_t^{(w)} = \sqrt{252} \cdot \frac{\bar{r}_t - R_f}{\sigma_t^{(w)} / \sqrt{252}}$$
 
 ``` r
 port_daily[, roll_sharpe := (frollmean(ret, window) - rf) / frollsd(ret, window) * sqrt(252)]
@@ -470,6 +567,16 @@ port_daily |>
 
 #### Value at Risk
 
+Value at Risk answers a regulator’s question: “over one day, how bad can
+it plausibly get?” At confidence level $1 - \alpha$ it is the loss that
+returns will not exceed with probability $1 - \alpha$, i.e. the lower
+$\alpha$-quantile of the return distribution:
+
+$$\mathrm{VaR}_{1-\alpha} = Q_r(\alpha), \qquad P(r \le Q_r(\alpha)) = \alpha$$
+
+The *historical* estimate makes no distributional assumption — it simply
+reads the empirical quantile off the realized returns.
+
 Historical VaR at the 95% and 99% confidence levels:
 
 ``` r
@@ -481,6 +588,13 @@ port_daily[, .(VaR_95 = quantile(ret, 0.05), VaR_99 = quantile(ret, 0.01))]
     1: -0.01868494 -0.0265535
 
 #### Expected Shortfall (CVaR)
+
+VaR tells you a threshold but is silent about *how bad* the tail beyond
+it is, and it is not sub-additive (diversification can paradoxically
+increase it). Expected Shortfall fixes both by averaging the losses that
+fall beyond the VaR quantile:
+
+$$\mathrm{ES}_{1-\alpha} = \mathbb{E}\!\left[\, r \mid r \le Q_r(\alpha) \,\right]$$
 
 Average loss beyond VaR:
 
@@ -497,9 +611,15 @@ port_daily[, .(
 
 #### Portfolio risk
 
-Portfolio risk is defined as:
+Portfolio volatility is *not* the weighted average of the individual
+volatilities — correlations matter, which is the whole point of
+diversification. With weight vector $w$ and return covariance matrix
+$\Sigma$, risk is the quadratic form
 
-$$\sigma_p = \sqrt{w^T \Sigma w}$$
+$$\sigma_p = \sqrt{w^\top \Sigma w}$$
+
+The off-diagonal terms of $\Sigma$ are what let imperfectly correlated
+assets partially cancel each other’s risk.
 
 ``` r
 cov_mat = dt |>
@@ -515,9 +635,14 @@ port_risk
 
 #### Drawdown
 
-Maximum Drawdown is defined as follows:
+Volatility treats gains and losses symmetrically, but what actually
+makes investors capitulate is the peak-to-trough decline. The drawdown
+at time $t$ measures how far the cumulative value $V_t$ has fallen below
+its running all-time high, and the maximum drawdown is the worst such
+drop over the whole path:
 
-$$MDD = \max_{i \leq j} \left( \frac{V_i - V_j}{V_i} \right)$$
+$$D_t = \frac{V_t}{\max_{u \le t} V_u} - 1, \qquad
+MDD = \max_{i \leq j} \left( \frac{V_i - V_j}{V_i} \right)$$
 
 Instrument drawdown:
 
@@ -574,7 +699,12 @@ drawdown[drawdown < 0, .(min_drawdown = min(drawdown), avg_drawdown = mean(drawd
 
 #### Calmar ratio
 
-Annualized return divided by maximum drawdown:
+The Calmar ratio is a risk-adjusted return that uses the maximum
+drawdown as its risk measure instead of volatility — appealing because
+drawdown is the risk investors actually feel. It is the annualized
+return earned per unit of worst-case loss:
+
+$$\mathrm{Calmar} = \frac{R_{\text{ann}}}{|MDD|}$$
 
 ``` r
 calmar = port_daily[, (mean(ret) * 252) / abs(drawdown[, min(drawdown)])]
@@ -607,7 +737,12 @@ te[, .(
 
 #### Information ratio
 
-Excess return per unit of tracking error:
+Tracking error alone does not say whether the active bets paid off. The
+information ratio is the active-management analogue of the Sharpe ratio:
+it divides the *mean* excess return over the benchmark by the tracking
+error, measuring skill per unit of active risk taken:
+
+$$IR = \frac{\overline{r_p - r_b}}{TE}$$
 
 ``` r
 te[, mean(diff) / sd(diff) * sqrt(252)]
@@ -634,12 +769,17 @@ data.table(alpha = coefs[1L] * 252, beta = coefs[2L])
 
 #### Multi-factor model
 
-The single-factor model above explains returns with the benchmark alone.
-Each instrument is in fact driven by a common market factor plus a
-sector factor, so we can regress every ticker on both and recover its
-factor loadings. Assemble the factors and reshape them to long form,
-then match each ticker to its own sector factor with a join on `date`
-and `sector`:
+The single-factor model above explains returns with the benchmark alone,
+but our data-generating process used two systematic factors. Adding the
+sector factor gives a multi-factor regression whose loadings should
+recover the parameters we simulated with:
+
+$$r_{i,t} = \alpha_i + \beta_i^{m} \, r_{m,t} + \beta_i^{s} \, r_{s(i),t} + \epsilon_{i,t}$$
+
+Each instrument is driven by the common market factor plus its sector
+factor, so we regress every ticker on both and recover its factor
+loadings. Assemble the factors and reshape them to long form, then match
+each ticker to its own sector factor with a join on `date` and `sector`:
 
 ``` r
 factors = data.table(
@@ -674,8 +814,13 @@ loadings
 
 #### Rolling market beta
 
-Beta is not static. Estimate it over a rolling window from the ratio of
-the rolling covariance with the market to the market variance:
+Beta is not static — a company’s sensitivity to the market shifts as its
+business and leverage change. Estimating it over a trailing window
+exposes this drift. Over the window, beta is the ratio of the covariance
+with the market to the market variance, exactly the slope of the
+single-factor regression:
+
+$$\beta_t = \frac{\mathrm{Cov}_t(r_i, \, r_m)}{\mathrm{Var}_t(r_m)}$$
 
 ``` r
 reg |>
@@ -700,6 +845,16 @@ reg |>
 ![](README_files/figure-commonmark/unnamed-chunk-32-1.png)
 
 #### Correlation matrix
+
+The covariance matrix drives portfolio risk, but its entries are hard to
+read because they mix scale with co-movement. Normalizing covariance by
+the two volatilities strips out scale and leaves a unit-free measure of
+co-movement in $[-1, 1]$:
+
+$$\rho_{ij} = \frac{\Sigma_{ij}}{\sigma_i \, \sigma_j}$$
+
+Strongly correlated names offer little diversification — a fact the
+optimization section exploits directly.
 
 ``` r
 cor_mat = dt |>
