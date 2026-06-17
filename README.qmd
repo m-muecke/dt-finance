@@ -559,3 +559,121 @@ ggplot(cor_dt, aes(x = ticker1, y = ticker2, fill = cor)) +
     panel.grid = element_blank()
   )
 ```
+
+## Portfolio optimization
+
+The covariance matrix from the *Portfolio risk* section, together with the
+expected return of each instrument, is everything we need to find optimal
+weights. The closed-form solutions below are *unconstrained*, so weights may turn
+negative (short positions); adding a long-only constraint would require a
+quadratic-programming solver.
+
+#### Expected returns and annualized covariance
+
+Use the mean `log_ret` per ticker for the expected returns, consistent with the
+log-return covariance, and annualize both. Align the return vector to the columns
+of `cov_mat` with the same join idiom used earlier for the weights:
+
+```{r}
+sigma = cov_mat * 252
+mu = dt[, .(mu = mean(log_ret) * 252), by = ticker]
+mu_vec = mu[colnames(sigma), mu, on = "ticker"]
+
+prec = solve(sigma) # inverse covariance (precision) matrix
+ones = rep(1, nrow(sigma))
+
+port_stats = function(w) {
+  list(ret = as.numeric(t(w) %*% mu_vec), vol = as.numeric(sqrt(t(w) %*% sigma %*% w)))
+}
+```
+
+#### Minimum-variance portfolio
+
+The portfolio with the lowest possible variance has a closed-form solution:
+
+$$
+w_{mv} = \frac{\Sigma^{-1} \mathbf{1}}{\mathbf{1}^{\top} \Sigma^{-1} \mathbf{1}}
+$$
+
+```{r}
+w_mv = prec %*% ones / as.numeric(t(ones) %*% prec %*% ones)
+mv = port_stats(w_mv)
+mv
+```
+
+#### Maximum-Sharpe (tangency) portfolio
+
+The tangency portfolio maximises the Sharpe ratio and points where the capital
+market line touches the efficient frontier:
+
+$$
+w_{tan} \propto \Sigma^{-1} (\mu - r_f \mathbf{1})
+$$
+
+```{r}
+rf_ann = rf * 252
+w_tan = prec %*% (mu_vec - rf_ann)
+w_tan = w_tan / sum(w_tan)
+tan = port_stats(w_tan)
+c(tan, sharpe = (tan$ret - rf_ann) / tan$vol)
+```
+
+#### Compare the weights
+
+```{r}
+weights = data.table(
+  ticker = colnames(sigma),
+  current = alloc[colnames(sigma), weight, on = "ticker"],
+  min_var = as.numeric(w_mv),
+  tangency = as.numeric(w_tan)
+)
+weights
+```
+
+#### Efficient frontier
+
+Every frontier portfolio can be traced in closed form from three scalars derived
+from $\Sigma^{-1}$, $\mu$ and $\mathbf{1}$:
+
+$$
+\sigma_p^2(\mu_p) = \frac{A \mu_p^2 - 2 B \mu_p + C}{A C - B^2},
+\quad A = \mathbf{1}^{\top} \Sigma^{-1} \mathbf{1},
+\quad B = \mathbf{1}^{\top} \Sigma^{-1} \mu,
+\quad C = \mu^{\top} \Sigma^{-1} \mu
+$$
+
+```{r}
+A = as.numeric(t(ones) %*% prec %*% ones)
+B = as.numeric(t(ones) %*% prec %*% mu_vec)
+C = as.numeric(t(mu_vec) %*% prec %*% mu_vec)
+D = A * C - B^2
+
+frontier = data.table(ret = seq(min(mu_vec), max(mu_vec), length.out = 100L)) |>
+  _[, vol := sqrt((A * ret^2 - 2 * B * ret + C) / D)]
+head(frontier)
+```
+
+Plot the frontier together with the individual instruments and the two optimal
+portfolios:
+
+```{r}
+#| dpi: 300
+assets = data.table(ticker = colnames(sigma), ret = mu_vec, vol = sqrt(diag(sigma)))
+specials = data.table(
+  label = c("Min variance", "Tangency"),
+  ret = c(mv$ret, tan$ret),
+  vol = c(mv$vol, tan$vol)
+)
+
+ggplot(frontier, aes(x = vol, y = ret)) +
+  geom_line(color = "darkblue") +
+  geom_point(data = assets, color = "black") +
+  geom_text(data = assets, aes(label = ticker), vjust = -1, size = 3) +
+  geom_point(data = specials, aes(color = label), size = 3) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_color_manual(values = c("Min variance" = "#00A651", "Tangency" = "#FF0000")) +
+  labs(title = "Efficient Frontier", x = "Volatility", y = "Expected return") +
+  theme_finance +
+  theme(axis.title = element_text(), legend.position = "bottom")
+```
