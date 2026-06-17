@@ -835,7 +835,7 @@ B = as.numeric(t(ones) %*% prec %*% mu_vec)
 C = as.numeric(t(mu_vec) %*% prec %*% mu_vec)
 D = A * C - B^2
 
-frontier = data.table(ret = seq(min(mu_vec), max(mu_vec), length.out = 100L)) |>
+frontier = data.table(ret = seq(min(mu_vec), tan$ret, length.out = 100L)) |>
   _[, vol := sqrt((A * ret^2 - 2 * B * ret + C) / D)]
 head(frontier)
 ```
@@ -853,7 +853,7 @@ specials = data.table(
 )
 
 ggplot(frontier, aes(x = vol, y = ret)) +
-  geom_line(color = "darkblue") +
+  geom_path(color = "darkblue") +
   geom_point(data = assets, color = "black") +
   geom_text(data = assets, aes(label = ticker), vjust = -1, size = 3) +
   geom_point(data = specials, aes(color = label), size = 3) +

@@ -995,7 +995,7 @@ B = as.numeric(t(ones) %*% prec %*% mu_vec)
 C = as.numeric(t(mu_vec) %*% prec %*% mu_vec)
 D = A * C - B^2
 
-frontier = data.table(ret = seq(min(mu_vec), max(mu_vec), length.out = 100L)) |>
+frontier = data.table(ret = seq(min(mu_vec), tan$ret, length.out = 100L)) |>
   _[, vol := sqrt((A * ret^2 - 2 * B * ret + C) / D)]
 head(frontier)
 ```
@@ -1003,11 +1003,11 @@ head(frontier)
                ret       vol
              <num>     <num>
     1: -0.06600891 0.2527404
-    2: -0.06378661 0.2508462
-    3: -0.06156431 0.2489642
-    4: -0.05934202 0.2470948
-    5: -0.05711972 0.2452382
-    6: -0.05489742 0.2433947
+    2: -0.06039051 0.2479752
+    3: -0.05477210 0.2432911
+    4: -0.04915369 0.2386929
+    5: -0.04353529 0.2341854
+    6: -0.03791688 0.2297742
 
 Plot the frontier together with the individual instruments and the two
 optimal portfolios:
@@ -1021,7 +1021,7 @@ specials = data.table(
 )
 
 ggplot(frontier, aes(x = vol, y = ret)) +
-  geom_line(color = "darkblue") +
+  geom_path(color = "darkblue") +
   geom_point(data = assets, color = "black") +
   geom_text(data = assets, aes(label = ticker), vjust = -1, size = 3) +
   geom_point(data = specials, aes(color = label), size = 3) +
